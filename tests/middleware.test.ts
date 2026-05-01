@@ -10,20 +10,15 @@ describe("Middleware config", () => {
     const { config } = await import("@/middleware");
     const [pattern] = config.matcher;
 
-    // pattern: /((?!api|_next/static|_next/image|favicon.ico).*)
-    // Build regex from the NextJS path-to-regexp style pattern
-    const re = new RegExp(`^/${pattern.slice(2, -1)}`
-      .replace("(?!", "(?!").replace(")(.*)", ")(.*)"));
-
-    // Protected paths should match
-    expect("/dashboard").toMatch(/dashboard/);
-    expect("/setup").toMatch(/setup/);
-
-    // Static/api paths are excluded by the negative lookahead
+    // The negative lookahead must exclude these prefixes
     const excluded = ["api", "_next/static", "_next/image", "favicon.ico"];
     for (const e of excluded) {
       expect(pattern).toContain(e);
     }
+
+    // Protected paths must NOT be excluded by the pattern
+    expect(pattern).not.toContain("dashboard");
+    expect(pattern).not.toContain("setup");
   });
 
   it("middleware config has correct matcher array", async () => {
