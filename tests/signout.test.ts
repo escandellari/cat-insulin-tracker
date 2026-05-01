@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { AUTHED_SESSION, toHtml } from "./helpers/auth";
 
 vi.mock("@/auth", () => ({
   auth: vi.fn(),
@@ -21,7 +22,6 @@ vi.mock("@/lib/db", () => ({
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { renderToStaticMarkup } from "react-dom/server";
 
 describe("Dashboard sign-out UI", () => {
   beforeEach(() => {
@@ -30,15 +30,11 @@ describe("Dashboard sign-out UI", () => {
 
   // Test 7: dashboard shows sign-out button
   it("renders a sign-out form/button on the dashboard", async () => {
-    vi.mocked(auth).mockResolvedValue({
-      user: { id: "user-1", name: "Jane Doe", email: "jane@example.com" },
-      expires: new Date(Date.now() + 86400000).toISOString(),
-    } as any);
+    vi.mocked(auth).mockResolvedValue(AUTHED_SESSION as any);
     vi.mocked(prisma.cat.findFirst).mockResolvedValue(null);
 
     const { default: DashboardPage } = await import("@/app/dashboard/page");
-    const jsx = await DashboardPage();
-    const html = renderToStaticMarkup(jsx as React.ReactElement);
+    const html = toHtml((await DashboardPage()) as React.ReactElement);
 
     expect(html).toContain("sign-out");
   });
