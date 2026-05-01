@@ -20,6 +20,55 @@ Managing a diabetic cat's insulin is stressful — missed doses are risky, and r
 
 Next.js 14 (App Router) · TypeScript · Tailwind CSS · shadcn/ui · Prisma · PostgreSQL · Auth.js v5 · Vercel
 
+## Running Locally
+
+### 1. Install dependencies
+```bash
+npm install
+```
+
+### 2. Set up environment variables
+```bash
+cp .env.example .env
+```
+
+Fill in `.env`:
+
+| Variable | Where to get it |
+|---|---|
+| `DATABASE_URL` | Supabase or Neon → Project Settings → Database → Connection string (URI) |
+| `AUTH_SECRET` | Run `npx auth secret` |
+| `AUTH_URL` | `http://localhost:3000` for local dev |
+| `AUTH_GOOGLE_ID` | Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client ID |
+| `AUTH_GOOGLE_SECRET` | Same as above |
+
+**Setting up Google OAuth:**
+1. Go to [console.cloud.google.com](https://console.cloud.google.com) and select or create a project
+2. **APIs & Services** → **Credentials** → **+ Create Credentials** → **OAuth client ID**
+3. Configure the consent screen if prompted (User type: External)
+4. Application type: **Web application**
+5. Add authorised redirect URI: `http://localhost:3000/api/auth/callback/google`
+6. Copy the Client ID and Client Secret into `.env`
+
+### 3. Run database migrations
+```bash
+npx prisma migrate dev
+```
+
+### 4. Start the dev server
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+### Running tests
+```bash
+npm test
+```
+
+---
+
 ## Development Workflow
 
 See [WORKFLOW.md](./WORKFLOW.md) for how to go from PRD → GitHub issues → implementation using the AI agent pipeline.
