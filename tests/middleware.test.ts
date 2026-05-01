@@ -6,25 +6,34 @@ vi.mock("@/auth", () => ({
 }));
 
 describe("Middleware config", () => {
-  it("middleware config matcher covers app routes but excludes static/api", async () => {
+  it("matcher excludes auth, api, and static paths from middleware", async () => {
     const { config } = await import("@/middleware");
     const [pattern] = config.matcher;
+    // Next.js anchors the matcher pattern at start and end when evaluating paths
+    const re = new RegExp("^" + pattern + "$");
 
-    // The negative lookahead must exclude these prefixes
-    const excluded = ["api", "_next/static", "_next/image", "favicon.ico"];
-    for (const e of excluded) {
-      expect(pattern).toContain(e);
-    }
+    // These must NOT be intercepted by middleware (excluded via negative lookahead)
+    expect(re.test("/auth/signin")).toBe(false);
+    expect(re.test("/auth/callback/google")).toBe(false);
+    expect(re.test("/api/auth/session")).toBe(false);
+    expect(re.test("/_next/static/chunk.js")).toBe(false);
+    expect(re.test("/_next/image")).toBe(false);
+    expect(re.test("/favicon.ico")).toBe(false);
+  });
 
-    // Protected paths must NOT be excluded by the pattern
-    expect(pattern).not.toContain("dashboard");
-    expect(pattern).not.toContain("setup");
+  it("matcher intercepts protected app routes", async () => {
+    const { config } = await import("@/middleware");
+    const [pattern] = config.matcher;
+    const re = new RegExp("^" + pattern + "$");
+
+    expect(re.test("/dashboard")).toBe(true);
+    expect(re.test("/setup")).toBe(true);
   });
 
   it("middleware config has correct matcher array", async () => {
     const { config } = await import("@/middleware");
     expect(config.matcher).toBeInstanceOf(Array);
     expect(config.matcher).toHaveLength(1);
-    expect(config.matcher[0]).toContain("(?!api");
+    expect(config.matcher[0]).toContain("(?!api|auth");
   });
 });
