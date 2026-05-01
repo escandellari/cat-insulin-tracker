@@ -36,6 +36,7 @@ describe("Dashboard sign-out UI", () => {
     const { default: DashboardPage } = await import("@/app/dashboard/page");
     const html = toHtml((await DashboardPage()) as React.ReactElement);
 
-    expect(html).toContain("sign-out");
+    // Assert on the visible button label, not an attribute or CSS class
+    expect(html).toContain("Sign out");
   });
 });
