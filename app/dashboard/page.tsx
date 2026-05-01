@@ -9,8 +9,15 @@ export default async function DashboardPage() {
     redirect("/auth/signin");
   }
 
+  const userId = session.user?.id;
+  if (!userId) {
+    // Session exists but user.id is missing — should not happen with database strategy,
+    // but guard against silent undefined being passed to Prisma.
+    redirect("/auth/signin");
+  }
+
   const cat = await prisma.cat.findFirst({
-    where: { userId: session.user?.id as string },
+    where: { userId },
   });
 
   return (

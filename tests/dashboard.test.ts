@@ -54,7 +54,7 @@ describe("Dashboard page", () => {
     const html = toHtml((await DashboardPage()) as React.ReactElement);
 
     expect(html).toContain("Set up your cat");
-    expect(html).toContain("/setup");
+    expect(html).toContain('href="/setup"');
   });
 
   // Test 6: dashboard renders user name/email alongside CTA
