@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
+import { CatStep, DateStep, ReviewStep, ScheduleStep } from "./setup-wizard-steps";
 import {
   setupSchema,
   setupStepSchemas,
@@ -112,81 +113,21 @@ export function SetupWizard({
     <form onSubmit={onSubmit} className="space-y-6">
       <h1 className="text-2xl font-bold">Set up your cat&apos;s profile</h1>
 
-      {step === 0 && (
-        <div className="space-y-2">
-          <label className="block space-y-1">
-            <span>Cat name</span>
-            <input aria-label="Cat name" className="w-full rounded border p-2" {...register("catName")} />
-          </label>
-          {errors.catName && <p>{errors.catName.message}</p>}
-        </div>
-      )}
+      {step === 0 && <CatStep register={register} error={errors.catName?.message} />}
 
       {step === 1 && (
-        <div className="space-y-4">
-          {injectionTimes.map((time, index) => (
-            <label key={index} className="block space-y-1">
-              <span>{`Injection time ${index + 1}`}</span>
-              <input
-                aria-label={`Injection time ${index + 1}`}
-                type="time"
-                className="w-full rounded border p-2"
-                value={time}
-                onChange={(event) => updateInjectionTime(index, event.target.value)}
-              />
-            </label>
-          ))}
-          <button type="button" onClick={addInjectionTime}>
-            Add injection time
-          </button>
-          {errors.injectionTimes && <p>{errors.injectionTimes.message as string}</p>}
-
-          <label className="block space-y-1">
-            <span>Default dosage</span>
-            <input aria-label="Default dosage" type="number" step="0.1" {...register("defaultDosage")} />
-          </label>
-          {errors.defaultDosage && <p>{errors.defaultDosage.message}</p>}
-
-          <label className="block space-y-1">
-            <span>Default needles per injection</span>
-            <input
-              aria-label="Default needles per injection"
-              type="number"
-              step="1"
-              {...register("defaultNeedlesPerInjection")}
-            />
-          </label>
-          {errors.defaultNeedlesPerInjection && <p>{errors.defaultNeedlesPerInjection.message}</p>}
-        </div>
+        <ScheduleStep
+          injectionTimes={injectionTimes}
+          register={register}
+          errors={errors}
+          updateInjectionTime={updateInjectionTime}
+          addInjectionTime={addInjectionTime}
+        />
       )}
 
-      {step === 2 && (
-        <div className="space-y-4">
-          <label className="block space-y-1">
-            <span>Timezone</span>
-            <input aria-label="Timezone" {...register("timezone")} />
-          </label>
-          {errors.timezone && <p>{errors.timezone.message}</p>}
+      {step === 2 && <DateStep register={register} errors={errors} />}
 
-          <label className="block space-y-1">
-            <span>Schedule start date</span>
-            <input aria-label="Schedule start date" type="date" {...register("scheduleStartDate")} />
-          </label>
-          {errors.scheduleStartDate && <p>{errors.scheduleStartDate.message}</p>}
-        </div>
-      )}
-
-      {step === 3 && (
-        <div className="space-y-2">
-          <p>{values.catName}</p>
-          {values.injectionTimes?.map((time) => <p key={time}>{time}</p>)}
-          <p>{String(values.defaultDosage ?? "")} units</p>
-          <p>{String(values.defaultNeedlesPerInjection ?? "")} needles</p>
-          <p>{values.timezone}</p>
-          <p>{values.scheduleStartDate}</p>
-          {submitError && <p>{submitError}</p>}
-        </div>
-      )}
+      {step === 3 && <ReviewStep values={values} submitError={submitError} />}
 
       <div className="flex gap-2">
         {step > 0 && (
