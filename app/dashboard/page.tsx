@@ -20,6 +20,19 @@ export default async function DashboardPage() {
     where: { userId },
   });
 
+  if (!cat) {
+    redirect("/setup");
+  }
+
+  const upcomingEvents = await prisma.injectionEvent.findMany({
+    where: {
+      catId: cat.id,
+      status: "UPCOMING",
+    },
+    orderBy: { scheduledAt: "asc" },
+    take: 5,
+  });
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4">
       <div className="max-w-md w-full space-y-6">
@@ -46,19 +59,14 @@ export default async function DashboardPage() {
           </form>
         </div>
 
-        {!cat && (
-          <div className="rounded-lg border p-6 text-center space-y-4">
-            <p className="text-lg font-medium">
-              Welcome! Set up your cat&apos;s profile
-            </p>
-            <a
-              href="/setup"
-              className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
-            >
-              Set up your cat&apos;s profile
-            </a>
-          </div>
-        )}
+        <section className="space-y-3">
+          <h2 className="text-lg font-medium">Upcoming injections</h2>
+          <ul className="space-y-2">
+            {upcomingEvents.map((event) => (
+              <li key={event.id}>{event.scheduledAt.toISOString()}</li>
+            ))}
+          </ul>
+        </section>
       </div>
     </main>
   );

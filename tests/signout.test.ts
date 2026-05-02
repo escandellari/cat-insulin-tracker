@@ -17,6 +17,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/db", () => ({
   prisma: {
     cat: { findFirst: vi.fn() },
+    injectionEvent: { findMany: vi.fn() },
   },
 }));
 
@@ -31,7 +32,13 @@ describe("Dashboard sign-out UI", () => {
   // Test 7: dashboard shows sign-out button
   it("renders a sign-out form/button on the dashboard", async () => {
     vi.mocked(auth).mockResolvedValue(AUTHED_SESSION as any);
-    vi.mocked(prisma.cat.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.cat.findFirst).mockResolvedValue({
+      id: "cat-1",
+      userId: AUTHED_SESSION.user.id,
+      name: "Milo",
+      createdAt: new Date(),
+    } as any);
+    vi.mocked(prisma.injectionEvent.findMany).mockResolvedValue([] as any);
 
     const { default: DashboardPage } = await import("@/app/dashboard/page");
     const html = toHtml((await DashboardPage()) as React.ReactElement);

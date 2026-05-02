@@ -19,6 +19,9 @@ vi.mock("@/lib/db", () => ({
     cat: {
       findFirst: vi.fn(),
     },
+    injectionEvent: {
+      findMany: vi.fn(),
+    },
   },
 }));
 
@@ -45,26 +48,51 @@ describe("Dashboard page", () => {
     expect(redirect).toHaveBeenCalledWith("/auth/signin");
   });
 
-  // Test 2: authenticated user with no cat sees empty state CTA
-  it("returns JSX with empty-state CTA when user has no cat", async () => {
+  it("redirects signed-in user with no cat to /setup", async () => {
     vi.mocked(auth).mockResolvedValue(AUTHED_SESSION as any);
     vi.mocked(prisma.cat.findFirst).mockResolvedValue(null);
 
     const DashboardPage = await getDashboardPage();
-    const html = toHtml((await DashboardPage()) as React.ReactElement);
-
-    expect(html).toContain("Set up your cat");
-    expect(html).toContain('href="/setup"');
+    await expect(DashboardPage()).rejects.toThrow("REDIRECT:/setup");
+    expect(redirect).toHaveBeenCalledWith("/setup");
   });
 
-  // Test 6: dashboard renders user name/email alongside CTA
   it("renders signed-in user's name in dashboard", async () => {
     vi.mocked(auth).mockResolvedValue(AUTHED_SESSION as any);
-    vi.mocked(prisma.cat.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.cat.findFirst).mockResolvedValue({
+      id: "cat-1",
+      name: "Milo",
+      userId: AUTHED_SESSION.user.id,
+      createdAt: new Date(),
+    } as any);
+    vi.mocked(prisma.injectionEvent.findMany).mockResolvedValue([]);
 
     const DashboardPage = await getDashboardPage();
     const html = toHtml((await DashboardPage()) as React.ReactElement);
 
     expect(html).toContain("Jane Doe");
+  });
+
+  it("shows at least one upcoming injection event after setup", async () => {
+    vi.mocked(auth).mockResolvedValue(AUTHED_SESSION as any);
+    vi.mocked(prisma.cat.findFirst).mockResolvedValue({
+      id: "cat-1",
+      name: "Milo",
+      userId: AUTHED_SESSION.user.id,
+      createdAt: new Date(),
+    } as any);
+    vi.mocked(prisma.injectionEvent.findMany).mockResolvedValue([
+      {
+        id: "event-1",
+        status: "UPCOMING",
+        scheduledAt: new Date("2026-01-10T13:00:00.000Z"),
+      },
+    ] as any);
+
+    const DashboardPage = await getDashboardPage();
+    const html = toHtml((await DashboardPage()) as React.ReactElement);
+
+    expect(html).toContain("Upcoming injections");
+    expect(html).toContain("2026-01-10T13:00:00.000Z");
   });
 });

@@ -56,9 +56,48 @@ model VerificationToken {
 }
 
 model Cat {
-  id        String   @id @default(cuid())
-  userId    String
-  name      String
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                 String              @id @default(cuid())
+  userId             String
+  name               String
+  createdAt          DateTime            @default(now())
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  injectionSchedules InjectionSchedule[]
+  injectionEvents    InjectionEvent[]
+}
+
+model InjectionSchedule {
+  id                         String                  @id @default(cuid())
+  catId                      String
+  defaultDosage              Decimal
+  defaultNeedlesPerInjection Int
+  trackingWindowMinutes      Int                     @default(30)
+  missedThresholdHours       Int                     @default(12)
+  isActive                   Boolean                 @default(true)
+  createdAt                  DateTime                @default(now())
+  cat                        Cat                     @relation(fields: [catId], references: [id], onDelete: Cascade)
+  times                      InjectionScheduleTime[]
+  events                     InjectionEvent[]
+}
+
+model InjectionScheduleTime {
+  id         String            @id @default(cuid())
+  scheduleId String
+  timeOfDay  String
+  sortOrder  Int
+  schedule   InjectionSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleId, timeOfDay])
+}
+
+model InjectionEvent {
+  id          String               @id @default(cuid())
+  catId       String
+  scheduleId  String
+  scheduledAt DateTime
+  status      String               @default("UPCOMING")
+  createdAt   DateTime             @default(now())
+  cat         Cat                  @relation(fields: [catId], references: [id], onDelete: Cascade)
+  schedule    InjectionSchedule    @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@index([scheduleId, scheduledAt])
 }

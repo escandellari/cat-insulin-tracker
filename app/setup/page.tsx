@@ -1,9 +1,31 @@
-export default function SetupPage() {
+import { auth } from "@/auth";
+import { SetupWizard } from "@/features/setup";
+import { prisma } from "@/lib/db";
+import { redirect } from "next/navigation";
+
+function getToday() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export default async function SetupPage() {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    redirect("/auth/signin");
+  }
+
+  const cat = await prisma.cat.findFirst({
+    where: { userId: session.user.id },
+  });
+
+  if (cat) {
+    redirect("/dashboard");
+  }
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4">
       <div className="max-w-md w-full space-y-6">
-        <h1 className="text-2xl font-bold">Set up your cat&apos;s profile</h1>
-        <p className="text-muted-foreground">Coming soon in issue #2.</p>
+        <SetupWizard initialTimezone="UTC" initialScheduleStartDate={getToday()} />
       </div>
     </main>
   );

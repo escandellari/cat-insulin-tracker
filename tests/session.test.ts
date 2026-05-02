@@ -21,6 +21,9 @@ describe("Database session management", () => {
   beforeEach(async () => {
     // Clean up in correct order to respect FK constraints
     await prisma.session.deleteMany();
+    await prisma.injectionEvent.deleteMany();
+    await prisma.injectionScheduleTime.deleteMany();
+    await prisma.injectionSchedule.deleteMany();
     await prisma.cat.deleteMany();
     await prisma.account.deleteMany();
     await prisma.user.deleteMany();
