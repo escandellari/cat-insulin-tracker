@@ -5,6 +5,13 @@ import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { getLocalDateString } from "./local-date";
+import {
+  applyFieldErrors,
+  getDefaultSetupFormValues,
+  getStepForErrors,
+  isValidationErrorResponse,
+  type SetupWizardDateDefaults,
+} from "./setup-wizard-helpers";
 import { CatStep, DateStep, ReviewStep, ScheduleStep } from "./setup-wizard-steps";
 import {
   setupSchema,
@@ -13,36 +20,6 @@ import {
   type SetupInput,
 } from "./schema";
 import type { FieldErrors } from "react-hook-form";
-
-export type SetupWizardDateDefaults =
-  | {
-      kind: "browser";
-    }
-  | {
-      kind: "fixed";
-      timezone: string;
-      scheduleStartDate: string;
-    };
-
-const STEP_BY_FIELD: Partial<Record<keyof SetupFormInput, number>> = {
-  catName: 0,
-  injectionTimes: 1,
-  defaultDosage: 1,
-  defaultNeedlesPerInjection: 1,
-  timezone: 2,
-  scheduleStartDate: 2,
-};
-
-function isValidationErrorResponse(body: unknown): body is { errors: Partial<Record<keyof SetupFormInput, string[]>> } {
-  return typeof body === "object" && body !== null && "errors" in body;
-}
-
-function getStepForErrors(errors: Partial<Record<keyof SetupFormInput, unknown>>, fallbackStep: number) {
-  return Object.keys(errors).reduce(
-    (nextStepIndex, field) => Math.min(nextStepIndex, STEP_BY_FIELD[field as keyof SetupFormInput] ?? fallbackStep),
-    fallbackStep,
-  );
-}
 
 export function SetupWizard({
   defaultDateValues,
@@ -65,15 +42,7 @@ export function SetupWizard({
     formState: { errors, isSubmitting },
   } = useForm<SetupFormInput, undefined, SetupInput>({
     resolver: zodResolver(setupSchema),
-    defaultValues: {
-      catName: "",
-      injectionTimes: [""],
-      defaultDosage: 0,
-      defaultNeedlesPerInjection: 0,
-      timezone: defaultDateValues.kind === "fixed" ? defaultDateValues.timezone : "",
-      scheduleStartDate:
-        defaultDateValues.kind === "fixed" ? defaultDateValues.scheduleStartDate : "",
-    },
+    defaultValues: getDefaultSetupFormValues(defaultDateValues),
   });
 
   useEffect(() => {
@@ -107,12 +76,7 @@ export function SetupWizard({
     const parsed = schema.safeParse(stepValues);
 
     if (!parsed.success) {
-      const fieldErrors = parsed.error.flatten().fieldErrors;
-      for (const [field, messages] of Object.entries(fieldErrors)) {
-        if (messages?.[0]) {
-          setError(field as keyof SetupFormInput, { message: messages[0] });
-        }
-      }
+      applyFieldErrors(setError, parsed.error.flatten().fieldErrors);
       return;
     }
 
@@ -156,14 +120,7 @@ export function SetupWizard({
       const body = await response.json().catch(() => null);
 
       if (response.status === 400 && isValidationErrorResponse(body)) {
-        for (const [field, messages] of Object.entries(body.errors)) {
-          if (!messages?.[0]) {
-            continue;
-          }
-
-          setError(field as keyof SetupFormInput, { message: messages[0] });
-        }
-
+        applyFieldErrors(setError, body.errors);
         setStep(getStepForErrors(body.errors, step));
         return;
       }
