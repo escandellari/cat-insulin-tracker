@@ -1,11 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("next/navigation", () => ({
-  redirect: vi.fn((url: string) => {
-    throw new Error(`REDIRECT:${url}`);
-  }),
-}));
-
 import { redirect } from "next/navigation";
 
 describe("Root page", () => {
