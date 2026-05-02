@@ -202,6 +202,17 @@ describe("Setup wizard", () => {
     expect(screen.queryByText("Confirm setup")).not.toBeInTheDocument();
   });
 
+  it("blocks progress on impossible schedule start date", async () => {
+    await renderSetupWizard({ initialScheduleStartDate: "2026-02-29" });
+    completeCatStep();
+    completeScheduleStep();
+
+    clickNext();
+
+    expect(screen.getByText("Start date must be a real calendar date")).toBeInTheDocument();
+    expect(screen.queryByText("Confirm setup")).not.toBeInTheDocument();
+  });
+
   it("redirects to signin when setup submit resolves to auth page", async () => {
     vi.stubGlobal(
       "fetch",

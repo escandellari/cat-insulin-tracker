@@ -11,7 +11,12 @@ export async function POST(request: Request) {
     return NextResponse.redirect(new URL("/auth/signin", request.url), 303);
   }
 
-  const payload = await request.json();
+  const payload = await request.json().catch(() => null);
+
+  if (payload === null) {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
   const parsed = setupSchema.safeParse(payload);
 
   if (!parsed.success) {
