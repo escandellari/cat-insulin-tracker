@@ -1,7 +1,7 @@
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
+import { listScheduleDateParts, SCHEDULE_LOOKAHEAD_DAYS } from "./date-parts";
 
 const ROUND_TRIP_FORMAT = "yyyy-MM-dd'T'HH:mm:ss";
-const DAYS_AHEAD = 90;
 
 export class NonexistentLocalTimeError extends Error {
   constructor(
@@ -11,19 +11,6 @@ export class NonexistentLocalTimeError extends Error {
   ) {
     super(`Nonexistent local time: ${datePart} ${timeOfDay} ${timezone}`);
   }
-}
-
-function addDays(date: Date, days: number) {
-  const next = new Date(date);
-  next.setUTCDate(next.getUTCDate() + days);
-  return next;
-}
-
-function formatDatePart(date: Date) {
-  const year = date.getUTCFullYear();
-  const month = `${date.getUTCMonth() + 1}`.padStart(2, "0");
-  const day = `${date.getUTCDate()}`.padStart(2, "0");
-  return `${year}-${month}-${day}`;
 }
 
 export function resolveScheduledAt({
@@ -54,11 +41,7 @@ export function scheduleHasDstGap({
   timezone: string;
   injectionTimes: string[];
 }) {
-  const firstDay = new Date(`${startDate}T00:00:00.000Z`);
-
-  for (let offset = 0; offset <= DAYS_AHEAD; offset += 1) {
-    const datePart = formatDatePart(addDays(firstDay, offset));
-
+  for (const datePart of listScheduleDateParts(startDate, SCHEDULE_LOOKAHEAD_DAYS)) {
     for (const timeOfDay of injectionTimes) {
       try {
         resolveScheduledAt({ datePart, timeOfDay, timezone });
