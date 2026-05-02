@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 
+vi.mock("next-auth", () => ({
+  default: vi.fn(() => ({ auth: vi.fn() })),
+}));
+
 // Mock next-auth and auth to avoid loading Next.js internals
 vi.mock("@/auth", () => ({
   auth: vi.fn(),

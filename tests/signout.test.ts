@@ -8,12 +8,6 @@ vi.mock("@/auth", () => ({
   handlers: { GET: vi.fn(), POST: vi.fn() },
 }));
 
-vi.mock("next/navigation", () => ({
-  redirect: vi.fn((url: string) => {
-    throw new Error(`REDIRECT:${url}`);
-  }),
-}));
-
 vi.mock("@/lib/db", () => ({
   prisma: {
     cat: { findFirst: vi.fn() },
