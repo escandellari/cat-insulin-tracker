@@ -1,9 +1,11 @@
 import { auth, signOut } from "@/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { formatScheduledAt } from "@/features/scheduling";
 
 export default async function DashboardPage() {
   const session = await auth();
+  const now = new Date();
 
   if (!session) {
     redirect("/auth/signin");
@@ -18,6 +20,27 @@ export default async function DashboardPage() {
 
   const cat = await prisma.cat.findFirst({
     where: { userId },
+    include: {
+      user: {
+        select: {
+          timezone: true,
+        },
+      },
+    },
+  });
+
+  if (!cat) {
+    redirect("/setup");
+  }
+
+  const upcomingEvents = await prisma.injectionEvent.findMany({
+    where: {
+      catId: cat.id,
+      status: "UPCOMING",
+      scheduledAt: { gte: now },
+    },
+    orderBy: { scheduledAt: "asc" },
+    take: 5,
   });
 
   return (
@@ -46,19 +69,14 @@ export default async function DashboardPage() {
           </form>
         </div>
 
-        {!cat && (
-          <div className="rounded-lg border p-6 text-center space-y-4">
-            <p className="text-lg font-medium">
-              Welcome! Set up your cat&apos;s profile
-            </p>
-            <a
-              href="/setup"
-              className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
-            >
-              Set up your cat&apos;s profile
-            </a>
-          </div>
-        )}
+        <section className="space-y-3">
+          <h2 className="text-lg font-medium">Upcoming injections</h2>
+          <ul className="space-y-2">
+            {upcomingEvents.map((event) => (
+              <li key={event.id}>{formatScheduledAt(event.scheduledAt, cat.user.timezone)}</li>
+            ))}
+          </ul>
+        </section>
       </div>
     </main>
   );

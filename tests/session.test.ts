@@ -1,13 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import { PrismaClient } from "../prisma/test/client";
-
-import path from "path";
-
-const TEST_DB_URL = `file:${path.resolve(__dirname, "../prisma/test/test.db")}`;
-
-const prisma = new PrismaClient({
-  datasources: { db: { url: TEST_DB_URL } },
-});
+import { prisma, resetDatabase } from "./helpers/test-db";
 
 describe("Database session management", () => {
   beforeAll(async () => {
@@ -19,11 +11,7 @@ describe("Database session management", () => {
   });
 
   beforeEach(async () => {
-    // Clean up in correct order to respect FK constraints
-    await prisma.session.deleteMany();
-    await prisma.cat.deleteMany();
-    await prisma.account.deleteMany();
-    await prisma.user.deleteMany();
+    await resetDatabase();
   });
 
   // Test 3: session row exists in DB after sign-in

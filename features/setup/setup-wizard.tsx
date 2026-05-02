@@ -1,0 +1,176 @@
+"use client";
+
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
+import { useRouter } from "next/navigation";
+import { getLocalDateString } from "./local-date";
+import {
+  applyFieldErrors,
+  getDefaultSetupFormValues,
+  getStepForErrors,
+  isValidationErrorResponse,
+  type SetupWizardDateDefaults,
+} from "./setup-wizard-helpers";
+import { CatStep, DateStep, ReviewStep, ScheduleStep } from "./setup-wizard-steps";
+import {
+  setupSchema,
+  setupStepSchemas,
+  type SetupFormInput,
+  type SetupInput,
+} from "./schema";
+import type { FieldErrors } from "react-hook-form";
+
+export function SetupWizard({
+  defaultDateValues,
+}: {
+  defaultDateValues: SetupWizardDateDefaults;
+}) {
+  const router = useRouter();
+  const didHydrateBrowserDefaults = useRef(false);
+  const [step, setStep] = useState(0);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const {
+    register,
+    watch,
+    reset,
+    setValue,
+    getValues,
+    handleSubmit,
+    setError,
+    clearErrors,
+    formState: { errors, isSubmitting },
+  } = useForm<SetupFormInput, undefined, SetupInput>({
+    resolver: zodResolver(setupSchema),
+    defaultValues: getDefaultSetupFormValues(defaultDateValues),
+  });
+
+  useEffect(() => {
+    if (defaultDateValues.kind !== "browser" || didHydrateBrowserDefaults.current) {
+      return;
+    }
+
+    didHydrateBrowserDefaults.current = true;
+
+    reset(
+      {
+        ...getValues(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+        scheduleStartDate: getLocalDateString(),
+      },
+      { keepDirtyValues: true },
+    );
+  }, [defaultDateValues.kind, getValues, reset]);
+
+  const injectionTimes = watch("injectionTimes");
+
+  async function nextStep() {
+    const schema = setupStepSchemas[step];
+
+    if (!schema) {
+      setStep((current) => Math.min(current + 1, 3));
+      return;
+    }
+
+    const stepValues = getValues();
+    const parsed = schema.safeParse(stepValues);
+
+    if (!parsed.success) {
+      applyFieldErrors(setError, parsed.error.flatten().fieldErrors);
+      return;
+    }
+
+    clearErrors();
+    setStep((current) => Math.min(current + 1, 3));
+  }
+
+  function updateInjectionTime(index: number, value: string) {
+    const nextTimes = [...getValues("injectionTimes")];
+    nextTimes[index] = value;
+    setValue("injectionTimes", nextTimes, { shouldValidate: true, shouldDirty: true });
+  }
+
+  function addInjectionTime() {
+    setValue("injectionTimes", [...getValues("injectionTimes"), ""], {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+  }
+
+  const onSubmit = handleSubmit(
+    async (values) => {
+      setSubmitError(null);
+
+      const response = await fetch("/api/setup", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(values),
+      });
+
+      if (response.redirected && new URL(response.url).pathname === "/auth/signin") {
+        router.push("/auth/signin");
+        return;
+      }
+
+      if (response.status === 303 || response.ok) {
+        router.push("/dashboard");
+        return;
+      }
+
+      const body = await response.json().catch(() => null);
+
+      if (response.status === 400 && isValidationErrorResponse(body)) {
+        applyFieldErrors(setError, body.errors);
+        setStep(getStepForErrors(body.errors, step));
+        return;
+      }
+
+      setSubmitError(body?.error ?? "Setup failed");
+    },
+    (submitErrors: FieldErrors<SetupFormInput>) => {
+      setStep(getStepForErrors(submitErrors as Partial<Record<keyof SetupFormInput, unknown>>, step));
+    },
+  );
+
+  const values = watch();
+
+  return (
+    <form onSubmit={onSubmit} className="space-y-6">
+      <h1 className="text-2xl font-bold">Set up your cat&apos;s profile</h1>
+
+      {step === 0 && <CatStep register={register} error={errors.catName?.message} />}
+
+      {step === 1 && (
+        <ScheduleStep
+          injectionTimes={injectionTimes}
+          register={register}
+          errors={errors}
+          updateInjectionTime={updateInjectionTime}
+          addInjectionTime={addInjectionTime}
+        />
+      )}
+
+      {step === 2 && <DateStep register={register} errors={errors} />}
+
+      {step === 3 && <ReviewStep values={values} submitError={submitError} />}
+
+      <div className="flex gap-2">
+        {step > 0 && (
+          <button type="button" onClick={() => setStep((current) => current - 1)}>
+            Back
+          </button>
+        )}
+
+        {step < 3 ? (
+          <button type="button" onClick={nextStep}>
+            Next
+          </button>
+        ) : (
+          <button type="submit" disabled={isSubmitting}>
+            Confirm setup
+          </button>
+        )}
+      </div>
+    </form>
+  );
+}
