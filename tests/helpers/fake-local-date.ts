@@ -31,3 +31,12 @@ export function stubLocalDate(isoString: string, localDate: { year: number; mont
 
   vi.stubGlobal("Date", FakeDate as unknown as DateConstructor);
 }
+
+export function stubBrowserDateDefaults() {
+  stubLocalDate("2026-01-11T07:30:00.000Z", { year: 2026, month: 0, day: 10 });
+  vi.stubGlobal("Intl", {
+    DateTimeFormat: () => ({
+      resolvedOptions: () => ({ timeZone: "America/Los_Angeles" }),
+    }),
+  } as typeof Intl);
+}

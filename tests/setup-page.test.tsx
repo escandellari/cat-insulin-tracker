@@ -2,7 +2,7 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { stubLocalDate } from "./helpers/fake-local-date";
+import { stubBrowserDateDefaults } from "./helpers/fake-local-date";
 
 const push = vi.fn();
 const DEFAULT_WIZARD_PROPS = {
@@ -23,6 +23,17 @@ async function renderSetupWizard(
   const { SetupWizard } = await import("@/features/setup/setup-wizard");
 
   render(<SetupWizard {...DEFAULT_WIZARD_PROPS} {...props} />);
+}
+
+async function renderBrowserDefaultsDateStep() {
+  stubBrowserDateDefaults();
+  await renderSetupWizard({
+    defaultDateValues: {
+      kind: "browser",
+    },
+  });
+  completeCatStep();
+  completeScheduleStep();
 }
 
 function clickNext() {
@@ -243,20 +254,7 @@ describe("Setup wizard", () => {
   });
 
   it("overrides the initial schedule start date with the browser-local day", async () => {
-    stubLocalDate("2026-01-11T07:30:00.000Z", { year: 2026, month: 0, day: 10 });
-    vi.stubGlobal("Intl", {
-      DateTimeFormat: () => ({
-        resolvedOptions: () => ({ timeZone: "America/Los_Angeles" }),
-      }),
-    } as Intl);
-
-    await renderSetupWizard({
-      defaultDateValues: {
-        kind: "browser",
-      },
-    });
-    completeCatStep();
-    completeScheduleStep();
+    await renderBrowserDefaultsDateStep();
 
     await waitFor(() => {
       expect((screen.getByLabelText("Timezone") as HTMLInputElement).value).toBe(
@@ -269,13 +267,7 @@ describe("Setup wizard", () => {
   });
 
   it("keeps provided timezone and start date defaults unchanged", async () => {
-    stubLocalDate("2026-01-11T07:30:00.000Z", { year: 2026, month: 0, day: 10 });
-    vi.stubGlobal("Intl", {
-      DateTimeFormat: () => ({
-        resolvedOptions: () => ({ timeZone: "America/Los_Angeles" }),
-      }),
-    } as Intl);
-
+    stubBrowserDateDefaults();
     await renderSetupWizard();
     completeCatStep();
     completeScheduleStep();
@@ -287,20 +279,7 @@ describe("Setup wizard", () => {
   });
 
   it("does not overwrite touched browser-default date fields after mount", async () => {
-    stubLocalDate("2026-01-11T07:30:00.000Z", { year: 2026, month: 0, day: 10 });
-    vi.stubGlobal("Intl", {
-      DateTimeFormat: () => ({
-        resolvedOptions: () => ({ timeZone: "America/Los_Angeles" }),
-      }),
-    } as Intl);
-
-    await renderSetupWizard({
-      defaultDateValues: {
-        kind: "browser",
-      },
-    });
-    completeCatStep();
-    completeScheduleStep();
+    await renderBrowserDefaultsDateStep();
 
     await waitFor(() => {
       expect((screen.getByLabelText("Timezone") as HTMLInputElement).value).toBe(
