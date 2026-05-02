@@ -202,6 +202,21 @@ describe("Setup wizard", () => {
     expect(push).not.toHaveBeenCalled();
   });
 
+  it("shows DST-gap validation on submit and does not navigate", async () => {
+    await renderSetupWizard();
+    goToReviewStep({ injectionTimes: ["02:00"] });
+    fireEvent.click(screen.getByRole("button", { name: "Confirm setup" }));
+
+    expect(
+      await screen.findByText(
+        "Injection times must not include nonexistent local DST-gap times in the next 90 days",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Confirm setup" })).not.toBeInTheDocument();
+    expect(fetch).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+  });
+
   it("blocks progress on invalid timezone input", async () => {
     await renderSetupWizard();
     completeCatStep();

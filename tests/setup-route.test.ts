@@ -236,6 +236,28 @@ describe("POST /api/setup", () => {
     await expectNoSetupPersisted();
   });
 
+  it("returns 400 for DST-gap injection time and persists nothing", async () => {
+    await seedAuthedUser();
+
+    const { POST } = await import("@/app/api/setup/route");
+    const request = createSetupRequest(
+      JSON.stringify({
+        ...VALID_SETUP_PAYLOAD,
+        injectionTimes: ["02:00"],
+        scheduleStartDate: "2026-03-07",
+      }),
+    );
+
+    const response = await POST(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.errors.injectionTimes).toContain(
+      "Injection times must not include nonexistent local DST-gap times in the next 90 days",
+    );
+    await expectNoSetupPersisted();
+  });
+
   it("returns 409 for repeat setup submission and does not create duplicate records", async () => {
     await seedAuthedUser();
 

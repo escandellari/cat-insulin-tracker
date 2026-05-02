@@ -30,4 +30,16 @@ describe("generateInjectionEvents", () => {
     expect(events[1]?.scheduledAt.toISOString()).toBe("2026-03-08T12:00:00.000Z");
     expect(events[2]?.scheduledAt.toISOString()).toBe("2026-03-09T12:00:00.000Z");
   });
+
+  it("throws for nonexistent local DST-gap times instead of silently shifting them", () => {
+    expect(() =>
+      generateInjectionEvents({
+        catId: "cat-1",
+        scheduleId: "schedule-1",
+        startDate: "2026-03-07",
+        timezone: "America/New_York",
+        injectionTimes: ["02:00"],
+      }),
+    ).toThrowError("Nonexistent local time: 2026-03-08 02:00 America/New_York");
+  });
 });

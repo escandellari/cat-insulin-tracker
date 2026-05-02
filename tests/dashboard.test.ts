@@ -67,6 +67,9 @@ describe("Dashboard page", () => {
       id: "cat-1",
       name: "Milo",
       userId: AUTHED_SESSION.user.id,
+      user: {
+        timezone: "America/New_York",
+      },
       createdAt: new Date(),
     } as any);
     vi.mocked(prisma.injectionEvent.findMany).mockResolvedValue([]);
@@ -83,6 +86,9 @@ describe("Dashboard page", () => {
       id: "cat-1",
       name: "Milo",
       userId: AUTHED_SESSION.user.id,
+      user: {
+        timezone: "America/New_York",
+      },
       createdAt: new Date(),
     } as any);
     vi.mocked(prisma.injectionEvent.findMany).mockResolvedValue([
@@ -97,7 +103,8 @@ describe("Dashboard page", () => {
     const html = toHtml((await DashboardPage()) as React.ReactElement);
 
     expect(html).toContain("Upcoming injections");
-    expect(html).toContain("2026-01-10T13:00:00.000Z");
+    expect(html).toContain("Jan 10, 2026, 8:00 AM");
+    expect(html).not.toContain("2026-01-10T13:00:00.000Z");
   });
 
   it("excludes past upcoming events from the dashboard list", async () => {
@@ -109,6 +116,9 @@ describe("Dashboard page", () => {
       id: "cat-1",
       name: "Milo",
       userId: AUTHED_SESSION.user.id,
+      user: {
+        timezone: "America/New_York",
+      },
       createdAt: new Date(),
     } as any);
     vi.mocked(prisma.injectionEvent.findMany).mockImplementation(async (args: any) => {
@@ -131,7 +141,7 @@ describe("Dashboard page", () => {
     const DashboardPage = await getDashboardPage();
     const html = toHtml((await DashboardPage()) as React.ReactElement);
 
-    expect(html).toContain("2026-01-10T13:00:00.000Z");
+    expect(html).toContain("Jan 10, 2026, 8:00 AM");
     expect(html).not.toContain("2026-01-10T12:59:59.000Z");
   });
 });

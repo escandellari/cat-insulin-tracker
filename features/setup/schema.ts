@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { scheduleHasDstGap } from "@/features/scheduling";
 
 const ONE_YEAR_IN_DAYS = 365;
 
@@ -82,6 +83,21 @@ const setupBaseSchema = z.object(setupFieldSchemas);
 
 export const setupSchema = setupBaseSchema.superRefine((value, ctx) => {
   addStartDateRangeIssue(value.scheduleStartDate, ctx);
+
+  if (
+    !ctx.issues.length &&
+    scheduleHasDstGap({
+      startDate: value.scheduleStartDate,
+      timezone: value.timezone,
+      injectionTimes: value.injectionTimes,
+    })
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["injectionTimes"],
+      message: "Injection times must not include nonexistent local DST-gap times in the next 90 days",
+    });
+  }
 });
 
 const setupDateStepSchema = setupBaseSchema.pick({

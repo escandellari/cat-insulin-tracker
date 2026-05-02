@@ -1,6 +1,7 @@
 import { auth, signOut } from "@/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { formatScheduledAt } from "@/features/scheduling";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -19,6 +20,13 @@ export default async function DashboardPage() {
 
   const cat = await prisma.cat.findFirst({
     where: { userId },
+    include: {
+      user: {
+        select: {
+          timezone: true,
+        },
+      },
+    },
   });
 
   if (!cat) {
@@ -65,7 +73,7 @@ export default async function DashboardPage() {
           <h2 className="text-lg font-medium">Upcoming injections</h2>
           <ul className="space-y-2">
             {upcomingEvents.map((event) => (
-              <li key={event.id}>{event.scheduledAt.toISOString()}</li>
+              <li key={event.id}>{formatScheduledAt(event.scheduledAt, cat.user.timezone)}</li>
             ))}
           </ul>
         </section>

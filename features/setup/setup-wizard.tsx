@@ -12,6 +12,7 @@ import {
   type SetupFormInput,
   type SetupInput,
 } from "./schema";
+import type { FieldErrors } from "react-hook-form";
 
 export type SetupWizardDateDefaults =
   | {
@@ -22,6 +23,26 @@ export type SetupWizardDateDefaults =
       timezone: string;
       scheduleStartDate: string;
     };
+
+const STEP_BY_FIELD: Partial<Record<keyof SetupFormInput, number>> = {
+  catName: 0,
+  injectionTimes: 1,
+  defaultDosage: 1,
+  defaultNeedlesPerInjection: 1,
+  timezone: 2,
+  scheduleStartDate: 2,
+};
+
+function isValidationErrorResponse(body: unknown): body is { errors: Partial<Record<keyof SetupFormInput, string[]>> } {
+  return typeof body === "object" && body !== null && "errors" in body;
+}
+
+function getStepForErrors(errors: Partial<Record<keyof SetupFormInput, unknown>>, fallbackStep: number) {
+  return Object.keys(errors).reduce(
+    (nextStepIndex, field) => Math.min(nextStepIndex, STEP_BY_FIELD[field as keyof SetupFormInput] ?? fallbackStep),
+    fallbackStep,
+  );
+}
 
 export function SetupWizard({
   defaultDateValues,
@@ -109,28 +130,47 @@ export function SetupWizard({
     });
   }
 
-  const onSubmit = handleSubmit(async (values) => {
-    setSubmitError(null);
+  const onSubmit = handleSubmit(
+    async (values) => {
+      setSubmitError(null);
 
-    const response = await fetch("/api/setup", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(values),
-    });
+      const response = await fetch("/api/setup", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(values),
+      });
 
-    if (response.redirected && new URL(response.url).pathname === "/auth/signin") {
-      router.push("/auth/signin");
-      return;
-    }
+      if (response.redirected && new URL(response.url).pathname === "/auth/signin") {
+        router.push("/auth/signin");
+        return;
+      }
 
-    if (response.status === 303 || response.ok) {
-      router.push("/dashboard");
-      return;
-    }
+      if (response.status === 303 || response.ok) {
+        router.push("/dashboard");
+        return;
+      }
 
-    const body = await response.json().catch(() => null);
-    setSubmitError(body?.error ?? "Setup failed");
-  });
+      const body = await response.json().catch(() => null);
+
+      if (response.status === 400 && isValidationErrorResponse(body)) {
+        for (const [field, messages] of Object.entries(body.errors)) {
+          if (!messages?.[0]) {
+            continue;
+          }
+
+          setError(field as keyof SetupFormInput, { message: messages[0] });
+        }
+
+        setStep(getStepForErrors(body.errors, step));
+        return;
+      }
+
+      setSubmitError(body?.error ?? "Setup failed");
+    },
+    (submitErrors: FieldErrors<SetupFormInput>) => {
+      setStep(getStepForErrors(submitErrors as Partial<Record<keyof SetupFormInput, unknown>>, step));
+    },
+  );
 
   const values = watch();
 

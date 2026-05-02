@@ -1,5 +1,5 @@
-import { fromZonedTime } from "date-fns-tz";
 import type { Prisma } from "@prisma/client";
+import { resolveScheduledAt } from "@/features/scheduling";
 
 const DAYS_AHEAD = 90;
 
@@ -39,7 +39,11 @@ export function generateInjectionEvents({
       events.push({
         catId,
         scheduleId,
-        scheduledAt: fromZonedTime(`${datePart}T${injectionTime}:00`, timezone),
+        scheduledAt: resolveScheduledAt({
+          datePart,
+          timeOfDay: injectionTime,
+          timezone,
+        }),
         status: "UPCOMING",
       });
     }
