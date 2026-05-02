@@ -157,4 +157,93 @@ describe("Setup wizard", () => {
     expect((screen.getByLabelText("Default dosage") as HTMLInputElement).value).toBe("1.5");
     expect((screen.getByLabelText("Default needles per injection") as HTMLInputElement).value).toBe("2");
   });
+
+  it("shows a graceful error on repeat-submit failure and does not navigate", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ error: "Setup already completed" }), {
+          status: 409,
+          headers: { "content-type": "application/json" },
+        }),
+      ),
+    );
+
+    const { SetupWizard } = await import("@/features/setup/setup-wizard");
+
+    render(
+      <SetupWizard
+        initialTimezone="America/New_York"
+        initialScheduleStartDate="2026-01-10"
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Cat name"), {
+      target: { value: "Milo" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    fireEvent.change(screen.getByLabelText("Injection time 1"), {
+      target: { value: "08:00" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm setup" }));
+
+    expect(await screen.findByText("Setup already completed")).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("overrides the initial schedule start date with the browser-local day", async () => {
+    const RealDate = Date;
+
+    class FakeDate extends RealDate {
+      constructor(value?: string | number | Date) {
+        super(value ?? "2026-01-11T07:30:00.000Z");
+      }
+
+      getFullYear() {
+        return 2026;
+      }
+
+      getMonth() {
+        return 0;
+      }
+
+      getDate() {
+        return 10;
+      }
+
+      toISOString() {
+        return "2026-01-11T07:30:00.000Z";
+      }
+
+      static now() {
+        return new RealDate("2026-01-11T07:30:00.000Z").valueOf();
+      }
+    }
+
+    vi.stubGlobal("Date", FakeDate as unknown as DateConstructor);
+
+    const { SetupWizard } = await import("@/features/setup/setup-wizard");
+
+    render(
+      <SetupWizard
+        initialTimezone="UTC"
+        initialScheduleStartDate="2026-01-11"
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Cat name"), {
+      target: { value: "Milo" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    fireEvent.change(screen.getByLabelText("Injection time 1"), {
+      target: { value: "08:00" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+
+    expect((screen.getByLabelText("Schedule start date") as HTMLInputElement).value).toBe(
+      "2026-01-10",
+    );
+  });
 });

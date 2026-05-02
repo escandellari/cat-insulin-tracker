@@ -134,4 +134,86 @@ describe("POST /api/setup", () => {
     expect(response.status).toBe(400);
     expect(body.errors[field]).toBeTruthy();
   });
+
+  it("returns 400 for duplicate injection times and persists nothing", async () => {
+    await prisma.user.create({
+      data: {
+        id: AUTHED_SESSION.user.id,
+        email: AUTHED_SESSION.user.email,
+        name: AUTHED_SESSION.user.name,
+      },
+    });
+    vi.mocked(auth).mockResolvedValue(AUTHED_SESSION as any);
+
+    const { POST } = await import("@/app/api/setup/route");
+    const request = new Request("http://localhost/api/setup", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        catName: "Milo",
+        injectionTimes: ["08:00", "08:00"],
+        defaultDosage: 1.5,
+        defaultNeedlesPerInjection: 2,
+        timezone: "America/New_York",
+        scheduleStartDate: "2026-01-10",
+      }),
+    });
+
+    const response = await POST(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.errors.injectionTimes).toContain("Injection times must be unique");
+    expect(await prisma.cat.count()).toBe(0);
+    expect(await prisma.injectionSchedule.count()).toBe(0);
+    expect(await prisma.injectionScheduleTime.count()).toBe(0);
+    expect(await prisma.injectionEvent.count()).toBe(0);
+  });
+
+  it("returns 409 for repeat setup submission and does not create duplicate records", async () => {
+    await prisma.user.create({
+      data: {
+        id: AUTHED_SESSION.user.id,
+        email: AUTHED_SESSION.user.email,
+        name: AUTHED_SESSION.user.name,
+      },
+    });
+    vi.mocked(auth).mockResolvedValue(AUTHED_SESSION as any);
+
+    const { POST } = await import("@/app/api/setup/route");
+    const payload = {
+      catName: "Milo",
+      injectionTimes: ["08:00", "20:00"],
+      defaultDosage: 1.5,
+      defaultNeedlesPerInjection: 2,
+      timezone: "America/New_York",
+      scheduleStartDate: "2026-01-10",
+    };
+
+    const firstResponse = await POST(
+      new Request("http://localhost/api/setup", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      }),
+    );
+
+    expect(firstResponse.status).toBe(303);
+
+    const response = await POST(
+      new Request("http://localhost/api/setup", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(body.error).toBe("Setup already completed");
+    expect(await prisma.cat.count()).toBe(1);
+    expect(await prisma.injectionSchedule.count()).toBe(1);
+    expect(await prisma.injectionScheduleTime.count()).toBe(2);
+    expect(await prisma.injectionEvent.count()).toBe(182);
+  });
 });

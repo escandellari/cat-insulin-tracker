@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { CatStep, DateStep, ReviewStep, ScheduleStep } from "./setup-wizard-steps";
@@ -11,6 +11,14 @@ import {
   type SetupFormInput,
   type SetupInput,
 } from "./schema";
+
+function getLocalDateString() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 export function SetupWizard({
   initialTimezone,
@@ -22,6 +30,11 @@ export function SetupWizard({
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const shouldUseBrowserDefaults = initialTimezone === "UTC";
+  const browserTimezone = shouldUseBrowserDefaults
+    ? Intl.DateTimeFormat().resolvedOptions().timeZone || initialTimezone
+    : initialTimezone;
+  const browserDate = shouldUseBrowserDefaults ? getLocalDateString() : initialScheduleStartDate;
   const {
     register,
     watch,
@@ -38,17 +51,10 @@ export function SetupWizard({
       injectionTimes: [""],
       defaultDosage: 0,
       defaultNeedlesPerInjection: 0,
-      timezone: initialTimezone,
-      scheduleStartDate: initialScheduleStartDate,
+      timezone: browserTimezone,
+      scheduleStartDate: browserDate,
     },
   });
-
-  useEffect(() => {
-    const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    if (browserTimezone && initialTimezone === "UTC") {
-      setValue("timezone", browserTimezone, { shouldValidate: true });
-    }
-  }, [initialTimezone, setValue]);
 
   const injectionTimes = watch("injectionTimes");
 
@@ -104,7 +110,8 @@ export function SetupWizard({
       return;
     }
 
-    setSubmitError("Setup failed");
+    const body = await response.json().catch(() => null);
+    setSubmitError(body?.error ?? "Setup failed");
   });
 
   const values = watch();

@@ -10,6 +10,9 @@ export const setupFieldSchemas = {
     .pipe(
       z
         .array(z.string().regex(/^\d{2}:\d{2}$/))
+        .refine((times) => new Set(times).size === times.length, {
+          message: "Injection times must be unique",
+        })
         .min(1, "At least one injection time is required"),
     ),
   defaultDosage: z.coerce.number().min(0, "Dosage must be at least 0"),

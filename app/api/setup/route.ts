@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { createSetup, setupSchema } from "@/features/setup";
+import { createSetup, setupSchema, SetupAlreadyExistsError } from "@/features/setup";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -21,7 +21,15 @@ export async function POST(request: Request) {
     );
   }
 
-  await createSetup(prisma, userId, parsed.data);
+  try {
+    await createSetup(prisma, userId, parsed.data);
+  } catch (error) {
+    if (error instanceof SetupAlreadyExistsError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+
+    throw error;
+  }
 
   return NextResponse.redirect(new URL("/dashboard", request.url), 303);
 }
