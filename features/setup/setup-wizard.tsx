@@ -98,6 +98,11 @@ export function SetupWizard({
       body: JSON.stringify(values),
     });
 
+    if (response.redirected && new URL(response.url).pathname === "/auth/signin") {
+      router.push("/auth/signin");
+      return;
+    }
+
     if (response.status === 303 || response.ok) {
       router.push("/dashboard");
       return;

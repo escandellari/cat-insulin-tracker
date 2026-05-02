@@ -194,6 +194,70 @@ describe("Setup wizard", () => {
     expect(push).not.toHaveBeenCalled();
   });
 
+  it("blocks progress on invalid timezone input", async () => {
+    const { SetupWizard } = await import("@/features/setup/setup-wizard");
+
+    render(
+      <SetupWizard
+        initialTimezone="America/New_York"
+        initialScheduleStartDate="2026-01-10"
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Cat name"), {
+      target: { value: "Milo" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    fireEvent.change(screen.getByLabelText("Injection time 1"), {
+      target: { value: "08:00" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    fireEvent.change(screen.getByLabelText("Timezone"), {
+      target: { value: "Mars/Base" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+
+    expect(screen.getByText("Timezone must be a valid IANA timezone")).toBeInTheDocument();
+    expect(screen.queryByText("Confirm setup")).not.toBeInTheDocument();
+  });
+
+  it("redirects to signin when setup submit resolves to auth page", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        redirected: true,
+        url: "http://localhost/auth/signin",
+      }),
+    );
+
+    const { SetupWizard } = await import("@/features/setup/setup-wizard");
+
+    render(
+      <SetupWizard
+        initialTimezone="America/New_York"
+        initialScheduleStartDate="2026-01-10"
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Cat name"), {
+      target: { value: "Milo" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    fireEvent.change(screen.getByLabelText("Injection time 1"), {
+      target: { value: "08:00" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm setup" }));
+
+    await waitFor(() => {
+      expect(push).toHaveBeenCalledWith("/auth/signin");
+    });
+    expect(push).not.toHaveBeenCalledWith("/dashboard");
+  });
+
   it("overrides the initial schedule start date with the browser-local day", async () => {
     stubLocalDate("2026-01-11T07:30:00.000Z", { year: 2026, month: 0, day: 10 });
 

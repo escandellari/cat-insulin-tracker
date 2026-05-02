@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AUTHED_SESSION, toHtml } from "./helpers/auth";
 
 vi.mock("@/auth", () => ({
@@ -37,6 +37,10 @@ async function getDashboardPage() {
 describe("Dashboard page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   // Test 1: unauthenticated redirect
@@ -94,5 +98,40 @@ describe("Dashboard page", () => {
 
     expect(html).toContain("Upcoming injections");
     expect(html).toContain("2026-01-10T13:00:00.000Z");
+  });
+
+  it("excludes past upcoming events from the dashboard list", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-10T13:00:00.000Z"));
+
+    vi.mocked(auth).mockResolvedValue(AUTHED_SESSION as any);
+    vi.mocked(prisma.cat.findFirst).mockResolvedValue({
+      id: "cat-1",
+      name: "Milo",
+      userId: AUTHED_SESSION.user.id,
+      createdAt: new Date(),
+    } as any);
+    vi.mocked(prisma.injectionEvent.findMany).mockImplementation(async (args: any) => {
+      const events = [
+        {
+          id: "event-past",
+          status: "UPCOMING",
+          scheduledAt: new Date("2026-01-10T12:59:59.000Z"),
+        },
+        {
+          id: "event-now",
+          status: "UPCOMING",
+          scheduledAt: new Date("2026-01-10T13:00:00.000Z"),
+        },
+      ];
+
+      return events.filter((event) => event.scheduledAt >= args.where.scheduledAt.gte) as any;
+    });
+
+    const DashboardPage = await getDashboardPage();
+    const html = toHtml((await DashboardPage()) as React.ReactElement);
+
+    expect(html).toContain("2026-01-10T13:00:00.000Z");
+    expect(html).not.toContain("2026-01-10T12:59:59.000Z");
   });
 });

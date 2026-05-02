@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 
 export default async function DashboardPage() {
   const session = await auth();
+  const now = new Date();
 
   if (!session) {
     redirect("/auth/signin");
@@ -28,6 +29,7 @@ export default async function DashboardPage() {
     where: {
       catId: cat.id,
       status: "UPCOMING",
+      scheduledAt: { gte: now },
     },
     orderBy: { scheduledAt: "asc" },
     take: 5,

@@ -170,6 +170,41 @@ describe("POST /api/setup", () => {
     expect(await prisma.injectionEvent.count()).toBe(0);
   });
 
+  it("returns 400 for invalid timezone and persists nothing", async () => {
+    await prisma.user.create({
+      data: {
+        id: AUTHED_SESSION.user.id,
+        email: AUTHED_SESSION.user.email,
+        name: AUTHED_SESSION.user.name,
+      },
+    });
+    vi.mocked(auth).mockResolvedValue(AUTHED_SESSION as any);
+
+    const { POST } = await import("@/app/api/setup/route");
+    const request = new Request("http://localhost/api/setup", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        catName: "Milo",
+        injectionTimes: ["08:00"],
+        defaultDosage: 1.5,
+        defaultNeedlesPerInjection: 2,
+        timezone: "Mars/Base",
+        scheduleStartDate: "2026-01-10",
+      }),
+    });
+
+    const response = await POST(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.errors.timezone).toContain("Timezone must be a valid IANA timezone");
+    expect(await prisma.cat.count()).toBe(0);
+    expect(await prisma.injectionSchedule.count()).toBe(0);
+    expect(await prisma.injectionScheduleTime.count()).toBe(0);
+    expect(await prisma.injectionEvent.count()).toBe(0);
+  });
+
   it("returns 409 for repeat setup submission and does not create duplicate records", async () => {
     await prisma.user.create({
       data: {

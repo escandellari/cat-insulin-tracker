@@ -2,6 +2,15 @@ import { z } from "zod";
 
 const ONE_YEAR_IN_DAYS = 365;
 
+function isValidTimezone(timezone: string) {
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone: timezone }).format();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function addStartDateRangeIssue(scheduleStartDate: string, ctx: z.RefinementCtx) {
   const startDate = new Date(`${scheduleStartDate}T00:00:00.000Z`);
   const cutoff = new Date();
@@ -32,7 +41,11 @@ export const setupFieldSchemas = {
     ),
   defaultDosage: z.coerce.number().min(0, "Dosage must be at least 0"),
   defaultNeedlesPerInjection: z.coerce.number().int().min(0, "Needles must be at least 0"),
-  timezone: z.string().trim().min(1, "Timezone is required"),
+  timezone: z
+    .string()
+    .trim()
+    .min(1, "Timezone is required")
+    .refine(isValidTimezone, "Timezone must be a valid IANA timezone"),
   scheduleStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Start date is required"),
 };
 
