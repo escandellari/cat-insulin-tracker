@@ -2,6 +2,21 @@ import { z } from "zod";
 
 const ONE_YEAR_IN_DAYS = 365;
 
+function addStartDateRangeIssue(scheduleStartDate: string, ctx: z.RefinementCtx) {
+  const startDate = new Date(`${scheduleStartDate}T00:00:00.000Z`);
+  const cutoff = new Date();
+  cutoff.setUTCHours(0, 0, 0, 0);
+  cutoff.setUTCDate(cutoff.getUTCDate() - ONE_YEAR_IN_DAYS);
+
+  if (startDate < cutoff) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["scheduleStartDate"],
+      message: "Start date cannot be more than 1 year in the past",
+    });
+  }
+}
+
 export const setupFieldSchemas = {
   catName: z.string().trim().min(1, "Cat name is required"),
   injectionTimes: z
@@ -24,36 +39,14 @@ export const setupFieldSchemas = {
 const setupBaseSchema = z.object(setupFieldSchemas);
 
 export const setupSchema = setupBaseSchema.superRefine((value, ctx) => {
-  const startDate = new Date(`${value.scheduleStartDate}T00:00:00.000Z`);
-  const cutoff = new Date();
-  cutoff.setUTCHours(0, 0, 0, 0);
-  cutoff.setUTCDate(cutoff.getUTCDate() - ONE_YEAR_IN_DAYS);
-
-  if (startDate < cutoff) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["scheduleStartDate"],
-      message: "Start date cannot be more than 1 year in the past",
-    });
-  }
+  addStartDateRangeIssue(value.scheduleStartDate, ctx);
 });
 
 const setupDateStepSchema = setupBaseSchema.pick({
   timezone: true,
   scheduleStartDate: true,
 }).superRefine((value, ctx) => {
-  const startDate = new Date(`${value.scheduleStartDate}T00:00:00.000Z`);
-  const cutoff = new Date();
-  cutoff.setUTCHours(0, 0, 0, 0);
-  cutoff.setUTCDate(cutoff.getUTCDate() - ONE_YEAR_IN_DAYS);
-
-  if (startDate < cutoff) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["scheduleStartDate"],
-      message: "Start date cannot be more than 1 year in the past",
-    });
-  }
+  addStartDateRangeIssue(value.scheduleStartDate, ctx);
 });
 
 export const setupStepSchemas = [

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createElement } from "react";
 import { AUTHED_SESSION, toHtml } from "./helpers/auth";
+import { stubLocalDate } from "./helpers/fake-local-date";
 
 vi.mock("@/auth", () => ({
   auth: vi.fn(),
@@ -62,35 +63,7 @@ describe("Setup page redirects", () => {
   });
 
   it("seeds the setup wizard start date from local date parts", async () => {
-    const RealDate = Date;
-
-    class FakeDate extends RealDate {
-      constructor(value?: string | number | Date) {
-        super(value ?? "2026-01-11T07:30:00.000Z");
-      }
-
-      getFullYear() {
-        return 2026;
-      }
-
-      getMonth() {
-        return 0;
-      }
-
-      getDate() {
-        return 10;
-      }
-
-      toISOString() {
-        return "2026-01-11T07:30:00.000Z";
-      }
-
-      static now() {
-        return new RealDate("2026-01-11T07:30:00.000Z").valueOf();
-      }
-    }
-
-    vi.stubGlobal("Date", FakeDate as unknown as DateConstructor);
+    stubLocalDate("2026-01-11T07:30:00.000Z", { year: 2026, month: 0, day: 10 });
     vi.mocked(auth).mockResolvedValue(AUTHED_SESSION as any);
     vi.mocked(prisma.cat.findFirst).mockResolvedValue(null);
 

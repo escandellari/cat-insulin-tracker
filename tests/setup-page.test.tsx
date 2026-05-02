@@ -2,6 +2,7 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { stubLocalDate } from "./helpers/fake-local-date";
 
 const push = vi.fn();
 
@@ -194,35 +195,7 @@ describe("Setup wizard", () => {
   });
 
   it("overrides the initial schedule start date with the browser-local day", async () => {
-    const RealDate = Date;
-
-    class FakeDate extends RealDate {
-      constructor(value?: string | number | Date) {
-        super(value ?? "2026-01-11T07:30:00.000Z");
-      }
-
-      getFullYear() {
-        return 2026;
-      }
-
-      getMonth() {
-        return 0;
-      }
-
-      getDate() {
-        return 10;
-      }
-
-      toISOString() {
-        return "2026-01-11T07:30:00.000Z";
-      }
-
-      static now() {
-        return new RealDate("2026-01-11T07:30:00.000Z").valueOf();
-      }
-    }
-
-    vi.stubGlobal("Date", FakeDate as unknown as DateConstructor);
+    stubLocalDate("2026-01-11T07:30:00.000Z", { year: 2026, month: 0, day: 10 });
 
     const { SetupWizard } = await import("@/features/setup/setup-wizard");
 

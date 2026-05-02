@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
+import { getLocalDateString } from "./local-date";
 import { CatStep, DateStep, ReviewStep, ScheduleStep } from "./setup-wizard-steps";
 import {
   setupSchema,
@@ -11,14 +12,6 @@ import {
   type SetupFormInput,
   type SetupInput,
 } from "./schema";
-
-function getLocalDateString() {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, "0");
-  const day = String(today.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
 
 export function SetupWizard({
   initialTimezone,
