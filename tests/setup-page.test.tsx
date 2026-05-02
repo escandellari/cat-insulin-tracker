@@ -6,8 +6,11 @@ import { stubLocalDate } from "./helpers/fake-local-date";
 
 const push = vi.fn();
 const DEFAULT_WIZARD_PROPS = {
-  initialTimezone: "America/New_York",
-  initialScheduleStartDate: "2026-01-10",
+  defaultDateValues: {
+    kind: "fixed",
+    timezone: "America/New_York",
+    scheduleStartDate: "2026-01-10",
+  },
 } as const;
 
 vi.mock("next/navigation", () => ({
@@ -203,7 +206,13 @@ describe("Setup wizard", () => {
   });
 
   it("blocks progress on impossible schedule start date", async () => {
-    await renderSetupWizard({ initialScheduleStartDate: "2026-02-29" });
+    await renderSetupWizard({
+      defaultDateValues: {
+        kind: "fixed",
+        timezone: "America/New_York",
+        scheduleStartDate: "2026-02-29",
+      },
+    });
     completeCatStep();
     completeScheduleStep();
 
@@ -235,16 +244,76 @@ describe("Setup wizard", () => {
 
   it("overrides the initial schedule start date with the browser-local day", async () => {
     stubLocalDate("2026-01-11T07:30:00.000Z", { year: 2026, month: 0, day: 10 });
+    vi.stubGlobal("Intl", {
+      DateTimeFormat: () => ({
+        resolvedOptions: () => ({ timeZone: "America/Los_Angeles" }),
+      }),
+    } as Intl);
 
     await renderSetupWizard({
-      initialTimezone: "UTC",
-      initialScheduleStartDate: "2026-01-11",
+      defaultDateValues: {
+        kind: "browser",
+      },
     });
     completeCatStep();
     completeScheduleStep();
 
+    await waitFor(() => {
+      expect((screen.getByLabelText("Timezone") as HTMLInputElement).value).toBe(
+        "America/Los_Angeles",
+      );
+      expect((screen.getByLabelText("Schedule start date") as HTMLInputElement).value).toBe(
+        "2026-01-10",
+      );
+    });
+  });
+
+  it("keeps provided timezone and start date defaults unchanged", async () => {
+    stubLocalDate("2026-01-11T07:30:00.000Z", { year: 2026, month: 0, day: 10 });
+    vi.stubGlobal("Intl", {
+      DateTimeFormat: () => ({
+        resolvedOptions: () => ({ timeZone: "America/Los_Angeles" }),
+      }),
+    } as Intl);
+
+    await renderSetupWizard();
+    completeCatStep();
+    completeScheduleStep();
+
+    expect((screen.getByLabelText("Timezone") as HTMLInputElement).value).toBe("America/New_York");
     expect((screen.getByLabelText("Schedule start date") as HTMLInputElement).value).toBe(
       "2026-01-10",
     );
+  });
+
+  it("does not overwrite touched browser-default date fields after mount", async () => {
+    stubLocalDate("2026-01-11T07:30:00.000Z", { year: 2026, month: 0, day: 10 });
+    vi.stubGlobal("Intl", {
+      DateTimeFormat: () => ({
+        resolvedOptions: () => ({ timeZone: "America/Los_Angeles" }),
+      }),
+    } as Intl);
+
+    await renderSetupWizard({
+      defaultDateValues: {
+        kind: "browser",
+      },
+    });
+    completeCatStep();
+    completeScheduleStep();
+
+    await waitFor(() => {
+      expect((screen.getByLabelText("Timezone") as HTMLInputElement).value).toBe(
+        "America/Los_Angeles",
+      );
+    });
+
+    fireEvent.change(screen.getByLabelText("Timezone"), {
+      target: { value: "America/Chicago" },
+    });
+
+    await waitFor(() => {
+      expect((screen.getByLabelText("Timezone") as HTMLInputElement).value).toBe("America/Chicago");
+    });
   });
 });

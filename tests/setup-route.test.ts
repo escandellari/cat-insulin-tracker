@@ -194,6 +194,28 @@ describe("POST /api/setup", () => {
     await expectNoSetupPersisted();
   });
 
+  it.each(["24:00", "24:60", "99:99"])(
+    "returns 400 for impossible injection time %s and persists nothing",
+    async (injectionTime) => {
+      await seedAuthedUser();
+
+      const { POST } = await import("@/app/api/setup/route");
+      const request = createSetupRequest(
+        JSON.stringify({
+          ...VALID_SETUP_PAYLOAD,
+          injectionTimes: [injectionTime],
+        }),
+      );
+
+      const response = await POST(request);
+      const body = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(body.errors.injectionTimes).toContain("Injection times must be real 24-hour times");
+      await expectNoSetupPersisted();
+    },
+  );
+
   it("returns 400 for invalid timezone and persists nothing", async () => {
     await seedAuthedUser();
 

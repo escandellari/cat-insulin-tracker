@@ -2,6 +2,8 @@ import { z } from "zod";
 
 const ONE_YEAR_IN_DAYS = 365;
 
+const TIME_OF_DAY_PATTERN = /^(\d{2}):(\d{2})$/;
+
 function isValidTimezone(timezone: string) {
   try {
     Intl.DateTimeFormat(undefined, { timeZone: timezone }).format();
@@ -20,6 +22,19 @@ function isRealCalendarDate(value: string) {
     date.getUTCMonth() === month - 1 &&
     date.getUTCDate() === day
   );
+}
+
+function isRealTimeOfDay(value: string) {
+  const match = TIME_OF_DAY_PATTERN.exec(value);
+
+  if (!match) {
+    return false;
+  }
+
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+
+  return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59;
 }
 
 function addStartDateRangeIssue(scheduleStartDate: string, ctx: z.RefinementCtx) {
@@ -43,8 +58,8 @@ export const setupFieldSchemas = {
     .array(z.string().trim())
     .transform((times) => times.filter(Boolean))
     .pipe(
-      z
-        .array(z.string().regex(/^\d{2}:\d{2}$/))
+        z
+        .array(z.string().refine(isRealTimeOfDay, "Injection times must be real 24-hour times"))
         .refine((times) => new Set(times).size === times.length, {
           message: "Injection times must be unique",
         })

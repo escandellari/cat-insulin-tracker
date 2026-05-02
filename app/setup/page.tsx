@@ -1,6 +1,5 @@
 import { auth } from "@/auth";
 import { SetupWizard } from "@/features/setup";
-import { getLocalDateString } from "@/features/setup/local-date";
 import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 
@@ -22,7 +21,7 @@ export default async function SetupPage() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4">
       <div className="max-w-md w-full space-y-6">
-        <SetupWizard initialTimezone="UTC" initialScheduleStartDate={getLocalDateString()} />
+        <SetupWizard defaultDateValues={{ kind: "browser" }} />
       </div>
     </main>
   );

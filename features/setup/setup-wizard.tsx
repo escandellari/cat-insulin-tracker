@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { getLocalDateString } from "./local-date";
@@ -13,30 +13,34 @@ import {
   type SetupInput,
 } from "./schema";
 
+export type SetupWizardDateDefaults =
+  | {
+      kind: "browser";
+    }
+  | {
+      kind: "fixed";
+      timezone: string;
+      scheduleStartDate: string;
+    };
+
 export function SetupWizard({
-  initialTimezone,
-  initialScheduleStartDate,
+  defaultDateValues,
 }: {
-  initialTimezone: string;
-  initialScheduleStartDate: string;
+  defaultDateValues: SetupWizardDateDefaults;
 }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const shouldUseBrowserDefaults = initialTimezone === "UTC";
-  const browserTimezone = shouldUseBrowserDefaults
-    ? Intl.DateTimeFormat().resolvedOptions().timeZone || initialTimezone
-    : initialTimezone;
-  const browserDate = shouldUseBrowserDefaults ? getLocalDateString() : initialScheduleStartDate;
   const {
     register,
     watch,
+    reset,
     setValue,
     getValues,
     handleSubmit,
     setError,
     clearErrors,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, dirtyFields },
   } = useForm<SetupFormInput, undefined, SetupInput>({
     resolver: zodResolver(setupSchema),
     defaultValues: {
@@ -44,10 +48,26 @@ export function SetupWizard({
       injectionTimes: [""],
       defaultDosage: 0,
       defaultNeedlesPerInjection: 0,
-      timezone: browserTimezone,
-      scheduleStartDate: browserDate,
+      timezone: defaultDateValues.kind === "fixed" ? defaultDateValues.timezone : "",
+      scheduleStartDate:
+        defaultDateValues.kind === "fixed" ? defaultDateValues.scheduleStartDate : "",
     },
   });
+
+  useEffect(() => {
+    if (defaultDateValues.kind !== "browser") {
+      return;
+    }
+
+    reset(
+      {
+        ...getValues(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+        scheduleStartDate: getLocalDateString(),
+      },
+      { keepDirtyValues: true },
+    );
+  }, [defaultDateValues, getValues, reset, dirtyFields.timezone, dirtyFields.scheduleStartDate]);
 
   const injectionTimes = watch("injectionTimes");
 

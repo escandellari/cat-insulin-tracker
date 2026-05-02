@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createElement } from "react";
 import { AUTHED_SESSION, toHtml } from "./helpers/auth";
-import { stubLocalDate } from "./helpers/fake-local-date";
 
 vi.mock("@/auth", () => ({
   auth: vi.fn(),
@@ -23,15 +22,14 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/features/setup", () => ({
   SetupWizard: ({
-    initialTimezone,
-    initialScheduleStartDate,
+    defaultDateValues,
   }: {
-    initialTimezone: string;
-    initialScheduleStartDate: string;
+    defaultDateValues: { kind: string; timezone?: string; scheduleStartDate?: string };
   }) =>
     createElement("div", {
-      "data-timezone": initialTimezone,
-      "data-start-date": initialScheduleStartDate,
+      "data-default-kind": defaultDateValues.kind,
+      "data-timezone": defaultDateValues.timezone,
+      "data-start-date": defaultDateValues.scheduleStartDate,
     }),
 }));
 
@@ -62,14 +60,15 @@ describe("Setup page redirects", () => {
     expect(redirect).toHaveBeenCalledWith("/dashboard");
   });
 
-  it("seeds the setup wizard start date from local date parts", async () => {
-    stubLocalDate("2026-01-11T07:30:00.000Z", { year: 2026, month: 0, day: 10 });
+  it("passes only the browser-default sentinel to the setup wizard", async () => {
     vi.mocked(auth).mockResolvedValue(AUTHED_SESSION as any);
     vi.mocked(prisma.cat.findFirst).mockResolvedValue(null);
 
     const SetupPage = await getSetupPage();
     const html = toHtml(await SetupPage());
 
-    expect(html).toContain('data-start-date="2026-01-10"');
+    expect(html).toContain('data-default-kind="browser"');
+    expect(html).not.toContain("data-timezone=");
+    expect(html).not.toContain("data-start-date=");
   });
 });
