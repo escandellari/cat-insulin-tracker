@@ -1,22 +1,25 @@
 import NextAuth from "next-auth";
-import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db";
+import authConfig from "@/auth.config";
+
+const { callbacks, ...restAuthConfig } = authConfig;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
-  providers: [Google],
-  session: { strategy: "database" },
-  pages: {
-    signIn: "/auth/signin",
-  },
+  session: { strategy: "jwt" },
   callbacks: {
-    authorized({ auth }) {
-      return !!auth;
+    ...callbacks,
+    jwt({ token, user }) {
+      if (user) token.id = user.id;
+      return token;
     },
-    session({ session, user }) {
-      session.user.id = user.id;
+    session({ session, token }) {
+      if (session.user) {
+        session.user.id = typeof token.id === "string" ? token.id : token.sub ?? "";
+      }
       return session;
     },
   },
+  ...restAuthConfig,
 });

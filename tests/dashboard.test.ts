@@ -38,7 +38,7 @@ describe("Dashboard page", () => {
 
   // Test 1: unauthenticated redirect
   it("redirects unauthenticated user to /auth/signin", async () => {
-    vi.mocked(auth).mockResolvedValue(null);
+    vi.mocked(auth as any).mockResolvedValue(null);
 
     const DashboardPage = await getDashboardPage();
     await expect(DashboardPage()).rejects.toThrow("REDIRECT:/auth/signin");
