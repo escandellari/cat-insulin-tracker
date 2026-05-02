@@ -2,7 +2,8 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { stubBrowserDateDefaults } from "./helpers/fake-local-date";
+import { useState } from "react";
+import { stubBrowserDateDefaults, stubLocalDate } from "./helpers/fake-local-date";
 
 const push = vi.fn();
 const DEFAULT_WIZARD_PROPS = {
@@ -270,6 +271,55 @@ describe("Setup wizard", () => {
 
   it("overrides the initial schedule start date with the browser-local day", async () => {
     await renderBrowserDefaultsDateStep();
+
+    await waitFor(() => {
+      expect((screen.getByLabelText("Timezone") as HTMLInputElement).value).toBe(
+        "America/Los_Angeles",
+      );
+      expect((screen.getByLabelText("Schedule start date") as HTMLInputElement).value).toBe(
+        "2026-01-10",
+      );
+    });
+  });
+
+  it("hydrates browser-default date fields only once across parent rerenders", async () => {
+    stubBrowserDateDefaults();
+    const { SetupWizard } = await import("@/features/setup/setup-wizard");
+
+    function Wrapper() {
+      const [renderCount, setRenderCount] = useState(0);
+
+      return (
+        <>
+          <button type="button" onClick={() => setRenderCount((count) => count + 1)}>
+            Rerender {renderCount}
+          </button>
+          <SetupWizard defaultDateValues={{ kind: "browser" }} />
+        </>
+      );
+    }
+
+    render(<Wrapper />);
+    completeCatStep();
+    completeScheduleStep();
+
+    await waitFor(() => {
+      expect((screen.getByLabelText("Timezone") as HTMLInputElement).value).toBe(
+        "America/Los_Angeles",
+      );
+      expect((screen.getByLabelText("Schedule start date") as HTMLInputElement).value).toBe(
+        "2026-01-10",
+      );
+    });
+
+    stubLocalDate("2026-01-12T07:30:00.000Z", { year: 2026, month: 0, day: 11 });
+    vi.stubGlobal("Intl", {
+      DateTimeFormat: () => ({
+        resolvedOptions: () => ({ timeZone: "America/Chicago" }),
+      }),
+    } as typeof Intl);
+
+    fireEvent.click(screen.getByRole("button", { name: "Rerender 0" }));
 
     await waitFor(() => {
       expect((screen.getByLabelText("Timezone") as HTMLInputElement).value).toBe(

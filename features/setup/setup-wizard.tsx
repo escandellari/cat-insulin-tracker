@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { getLocalDateString } from "./local-date";
@@ -50,6 +50,7 @@ export function SetupWizard({
   defaultDateValues: SetupWizardDateDefaults;
 }) {
   const router = useRouter();
+  const didHydrateBrowserDefaults = useRef(false);
   const [step, setStep] = useState(0);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const {
@@ -61,7 +62,7 @@ export function SetupWizard({
     handleSubmit,
     setError,
     clearErrors,
-    formState: { errors, isSubmitting, dirtyFields },
+    formState: { errors, isSubmitting },
   } = useForm<SetupFormInput, undefined, SetupInput>({
     resolver: zodResolver(setupSchema),
     defaultValues: {
@@ -76,9 +77,11 @@ export function SetupWizard({
   });
 
   useEffect(() => {
-    if (defaultDateValues.kind !== "browser") {
+    if (defaultDateValues.kind !== "browser" || didHydrateBrowserDefaults.current) {
       return;
     }
+
+    didHydrateBrowserDefaults.current = true;
 
     reset(
       {
@@ -88,7 +91,7 @@ export function SetupWizard({
       },
       { keepDirtyValues: true },
     );
-  }, [defaultDateValues, getValues, reset, dirtyFields.timezone, dirtyFields.scheduleStartDate]);
+  }, [defaultDateValues.kind, getValues, reset]);
 
   const injectionTimes = watch("injectionTimes");
 
