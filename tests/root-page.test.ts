@@ -7,10 +7,10 @@ describe("Root page", () => {
     vi.clearAllMocks();
   });
 
-  it("redirects users into the app flow via /dashboard", async () => {
+  it("redirects users into the app flow via /auth/signin", async () => {
     const { default: HomePage } = await import("@/app/page");
 
-    expect(() => HomePage()).toThrow("REDIRECT:/dashboard");
-    expect(redirect).toHaveBeenCalledWith("/dashboard");
+    expect(() => HomePage()).toThrow("REDIRECT:/auth/signin");
+    expect(redirect).toHaveBeenCalledWith("/auth/signin");
   });
 });
