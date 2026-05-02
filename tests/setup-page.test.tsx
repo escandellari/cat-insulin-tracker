@@ -5,10 +5,74 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { stubLocalDate } from "./helpers/fake-local-date";
 
 const push = vi.fn();
+const DEFAULT_WIZARD_PROPS = {
+  initialTimezone: "America/New_York",
+  initialScheduleStartDate: "2026-01-10",
+} as const;
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
 }));
+
+async function renderSetupWizard(
+  props: Partial<typeof DEFAULT_WIZARD_PROPS> = {},
+) {
+  const { SetupWizard } = await import("@/features/setup/setup-wizard");
+
+  render(<SetupWizard {...DEFAULT_WIZARD_PROPS} {...props} />);
+}
+
+function clickNext() {
+  fireEvent.click(screen.getByRole("button", { name: "Next" }));
+}
+
+function completeCatStep(catName = "Milo") {
+  fireEvent.change(screen.getByLabelText("Cat name"), {
+    target: { value: catName },
+  });
+  clickNext();
+}
+
+function completeScheduleStep({
+  injectionTimes = ["08:00"],
+  defaultDosage,
+  defaultNeedlesPerInjection,
+}: {
+  injectionTimes?: string[];
+  defaultDosage?: string;
+  defaultNeedlesPerInjection?: string;
+} = {}) {
+  fireEvent.change(screen.getByLabelText("Injection time 1"), {
+    target: { value: injectionTimes[0] ?? "08:00" },
+  });
+
+  for (const [index, time] of injectionTimes.slice(1).entries()) {
+    fireEvent.click(screen.getByRole("button", { name: "Add injection time" }));
+    fireEvent.change(screen.getByLabelText(`Injection time ${index + 2}`), {
+      target: { value: time },
+    });
+  }
+
+  if (defaultDosage !== undefined) {
+    fireEvent.change(screen.getByLabelText("Default dosage"), {
+      target: { value: defaultDosage },
+    });
+  }
+
+  if (defaultNeedlesPerInjection !== undefined) {
+    fireEvent.change(screen.getByLabelText("Default needles per injection"), {
+      target: { value: defaultNeedlesPerInjection },
+    });
+  }
+
+  clickNext();
+}
+
+function goToReviewStep(options?: Parameters<typeof completeScheduleStep>[0]) {
+  completeCatStep();
+  completeScheduleStep(options);
+  clickNext();
+}
 
 describe("Setup wizard", () => {
   beforeEach(() => {
@@ -25,37 +89,16 @@ describe("Setup wizard", () => {
   });
 
   it("collects the full payload, reviews it, and submits once", async () => {
-    const { SetupWizard } = await import("@/features/setup/setup-wizard");
-
-    render(
-      <SetupWizard
-        initialTimezone="America/New_York"
-        initialScheduleStartDate="2026-01-10"
-      />,
-    );
-
-    fireEvent.change(screen.getByLabelText("Cat name"), {
-      target: { value: "Milo" },
+    await renderSetupWizard();
+    goToReviewStep({
+      defaultDosage: "1.5",
+      defaultNeedlesPerInjection: "2",
     });
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
-
-    fireEvent.change(screen.getByLabelText("Injection time 1"), {
-      target: { value: "08:00" },
-    });
-    fireEvent.change(screen.getByLabelText("Default dosage"), {
-      target: { value: "1.5" },
-    });
-    fireEvent.change(screen.getByLabelText("Default needles per injection"), {
-      target: { value: "2" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
-
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
 
     expect(screen.getByText("Milo")).toBeInTheDocument();
     expect(screen.getByText("08:00")).toBeInTheDocument();
-    expect(screen.getByText("1.5 units")) .toBeInTheDocument();
-    expect(screen.getByText("2 needles")) .toBeInTheDocument();
+    expect(screen.getByText("1.5 units")).toBeInTheDocument();
+    expect(screen.getByText("2 needles")).toBeInTheDocument();
     expect(screen.getByText("America/New_York")).toBeInTheDocument();
     expect(screen.getByText("2026-01-10")).toBeInTheDocument();
 
@@ -84,23 +127,13 @@ describe("Setup wizard", () => {
   });
 
   it("shows inline validation errors and blocks progress", async () => {
-    const { SetupWizard } = await import("@/features/setup/setup-wizard");
+    await renderSetupWizard();
 
-    render(
-      <SetupWizard
-        initialTimezone="America/New_York"
-        initialScheduleStartDate="2026-01-10"
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    clickNext();
     expect(screen.getByText("Cat name is required")).toBeInTheDocument();
     expect(screen.queryByLabelText("Injection time 1")).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("Cat name"), {
-      target: { value: "Milo" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    completeCatStep();
 
     fireEvent.change(screen.getByLabelText("Default dosage"), {
       target: { value: "-1" },
@@ -108,7 +141,7 @@ describe("Setup wizard", () => {
     fireEvent.change(screen.getByLabelText("Default needles per injection"), {
       target: { value: "-1" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    clickNext();
 
     expect(screen.getByText("At least one injection time is required")).toBeInTheDocument();
     expect(screen.getByText("Dosage must be at least 0")).toBeInTheDocument();
@@ -117,35 +150,12 @@ describe("Setup wizard", () => {
   });
 
   it("preserves values when moving back and shows multiple injection times on review", async () => {
-    const { SetupWizard } = await import("@/features/setup/setup-wizard");
-
-    render(
-      <SetupWizard
-        initialTimezone="America/New_York"
-        initialScheduleStartDate="2026-01-10"
-      />,
-    );
-
-    fireEvent.change(screen.getByLabelText("Cat name"), {
-      target: { value: "Milo" },
+    await renderSetupWizard();
+    goToReviewStep({
+      injectionTimes: ["08:00", "20:00"],
+      defaultDosage: "1.5",
+      defaultNeedlesPerInjection: "2",
     });
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
-
-    fireEvent.change(screen.getByLabelText("Injection time 1"), {
-      target: { value: "08:00" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Add injection time" }));
-    fireEvent.change(screen.getByLabelText("Injection time 2"), {
-      target: { value: "20:00" },
-    });
-    fireEvent.change(screen.getByLabelText("Default dosage"), {
-      target: { value: "1.5" },
-    });
-    fireEvent.change(screen.getByLabelText("Default needles per injection"), {
-      target: { value: "2" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
 
     expect(screen.getByText("08:00")).toBeInTheDocument();
     expect(screen.getByText("20:00")).toBeInTheDocument();
@@ -170,24 +180,8 @@ describe("Setup wizard", () => {
       ),
     );
 
-    const { SetupWizard } = await import("@/features/setup/setup-wizard");
-
-    render(
-      <SetupWizard
-        initialTimezone="America/New_York"
-        initialScheduleStartDate="2026-01-10"
-      />,
-    );
-
-    fireEvent.change(screen.getByLabelText("Cat name"), {
-      target: { value: "Milo" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    fireEvent.change(screen.getByLabelText("Injection time 1"), {
-      target: { value: "08:00" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    await renderSetupWizard();
+    goToReviewStep();
     fireEvent.click(screen.getByRole("button", { name: "Confirm setup" }));
 
     expect(await screen.findByText("Setup already completed")).toBeInTheDocument();
@@ -195,28 +189,14 @@ describe("Setup wizard", () => {
   });
 
   it("blocks progress on invalid timezone input", async () => {
-    const { SetupWizard } = await import("@/features/setup/setup-wizard");
-
-    render(
-      <SetupWizard
-        initialTimezone="America/New_York"
-        initialScheduleStartDate="2026-01-10"
-      />,
-    );
-
-    fireEvent.change(screen.getByLabelText("Cat name"), {
-      target: { value: "Milo" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    fireEvent.change(screen.getByLabelText("Injection time 1"), {
-      target: { value: "08:00" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    await renderSetupWizard();
+    completeCatStep();
+    completeScheduleStep();
     fireEvent.change(screen.getByLabelText("Timezone"), {
       target: { value: "Mars/Base" },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    clickNext();
 
     expect(screen.getByText("Timezone must be a valid IANA timezone")).toBeInTheDocument();
     expect(screen.queryByText("Confirm setup")).not.toBeInTheDocument();
@@ -232,24 +212,8 @@ describe("Setup wizard", () => {
       }),
     );
 
-    const { SetupWizard } = await import("@/features/setup/setup-wizard");
-
-    render(
-      <SetupWizard
-        initialTimezone="America/New_York"
-        initialScheduleStartDate="2026-01-10"
-      />,
-    );
-
-    fireEvent.change(screen.getByLabelText("Cat name"), {
-      target: { value: "Milo" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    fireEvent.change(screen.getByLabelText("Injection time 1"), {
-      target: { value: "08:00" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    await renderSetupWizard();
+    goToReviewStep();
     fireEvent.click(screen.getByRole("button", { name: "Confirm setup" }));
 
     await waitFor(() => {
@@ -261,23 +225,12 @@ describe("Setup wizard", () => {
   it("overrides the initial schedule start date with the browser-local day", async () => {
     stubLocalDate("2026-01-11T07:30:00.000Z", { year: 2026, month: 0, day: 10 });
 
-    const { SetupWizard } = await import("@/features/setup/setup-wizard");
-
-    render(
-      <SetupWizard
-        initialTimezone="UTC"
-        initialScheduleStartDate="2026-01-11"
-      />,
-    );
-
-    fireEvent.change(screen.getByLabelText("Cat name"), {
-      target: { value: "Milo" },
+    await renderSetupWizard({
+      initialTimezone: "UTC",
+      initialScheduleStartDate: "2026-01-11",
     });
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    fireEvent.change(screen.getByLabelText("Injection time 1"), {
-      target: { value: "08:00" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    completeCatStep();
+    completeScheduleStep();
 
     expect((screen.getByLabelText("Schedule start date") as HTMLInputElement).value).toBe(
       "2026-01-10",
