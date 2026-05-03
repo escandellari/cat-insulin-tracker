@@ -5,12 +5,12 @@ import path from "path";
 export default defineConfig({
   plugins: [react()],
   test: {
-    environment: "node",
+    environment: "jsdom",
     globals: true,
     fileParallelism: false,
-    include: ["tests/**/*.test.ts"],
     setupFiles: ["./tests/setup.ts"],
-    exclude: ["tests/**/*.test.tsx", "node_modules/**"],
+    include: ["tests/**/*.test.tsx"],
+    exclude: ["tests/**/*.test.ts", "node_modules/**"],
     server: {
       deps: {
         inline: ["next-auth", "next"],

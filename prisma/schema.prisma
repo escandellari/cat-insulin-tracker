@@ -63,7 +63,7 @@ model Cat {
   userId             String              @unique
   name               String
   treatmentStartDate DateTime
-  createdAt          DateTime            @default(now())
+  createdAt           DateTime            @default(now())
   user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   injectionSchedules InjectionSchedule[]
   injectionEvents    InjectionEvent[]
@@ -88,7 +88,7 @@ model InjectionScheduleTime {
   scheduleId String
   timeOfDay  String
   sortOrder  Int
-  schedule   InjectionSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  schedule   InjectionSchedule    @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
 
   @@unique([scheduleId, timeOfDay])
 }
@@ -102,6 +102,20 @@ model InjectionEvent {
   createdAt   DateTime             @default(now())
   cat         Cat                  @relation(fields: [catId], references: [id], onDelete: Cascade)
   schedule    InjectionSchedule    @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  logs        InjectionLog[]
 
   @@index([scheduleId, scheduledAt])
+}
+
+model InjectionLog {
+  id            String    @id @default(cuid())
+  eventId       String    @unique
+  dosageGiven   Decimal   @db.Decimal(10, 2)
+  needlesUsed   Int
+  actualGivenAt DateTime
+  notes         String?
+  createdAt     DateTime  @default(now())
+  event         InjectionEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
 }
