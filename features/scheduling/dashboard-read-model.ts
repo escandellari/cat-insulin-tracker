@@ -4,6 +4,7 @@ import { deriveEventStatus, type DerivedEventStatus } from "./event-status";
 type DashboardEventSource = {
   id: string;
   scheduledAt: Date;
+  status?: string | null;
   schedule?: {
     trackingWindowMinutes?: number | null;
     missedThresholdHours?: number | null;
@@ -11,6 +12,10 @@ type DashboardEventSource = {
   } | null;
   injectionLog?: unknown | null;
 };
+
+function hasPersistedLogState(event: DashboardEventSource) {
+  return event.status === "COMPLETED" || event.status === "LATE" || event.status === "PARTIAL";
+}
 
 export type DashboardEvent = {
   id: string;
@@ -79,7 +84,7 @@ export function buildDashboardReadModel({
           now,
           trackingWindowMinutes,
           missedThresholdHours,
-          hasLog: Boolean(event.injectionLog),
+          hasLog: Boolean(event.injectionLog) || hasPersistedLogState(event),
         }),
         timeLabel: formatTime(event.scheduledAt, timezone),
         fullDateTimeLabel: formatDateTime(event.scheduledAt, timezone),
