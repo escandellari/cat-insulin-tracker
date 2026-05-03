@@ -23,6 +23,7 @@ export function getDefaultSetupFormValues(defaultDateValues: SetupWizardDateDefa
   return {
     catName: "",
     treatmentStartDate: defaultDateValues.kind === "fixed" ? defaultDateValues.treatmentStartDate : "",
+    browserTimezone: "UTC",
     morningTime: "08:00",
     eveningTime: "20:00",
     defaultDosage: 0,

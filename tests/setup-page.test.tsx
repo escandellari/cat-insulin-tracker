@@ -59,16 +59,19 @@ describe("Setup wizard", () => {
       expect.objectContaining({
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          catName: "Milo",
-          treatmentStartDate: "2026-01-12",
-          morningTime: "07:30",
-          eveningTime: "19:30",
-          defaultDosage: 1.5,
-          dueWindowMinutes: 45,
-        }),
+        body: expect.any(String),
       }),
     );
+
+    expect(JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string)).toEqual({
+      catName: "Milo",
+      treatmentStartDate: "2026-01-12",
+      browserTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      morningTime: "07:30",
+      eveningTime: "19:30",
+      defaultDosage: 1.5,
+      dueWindowMinutes: 45,
+    });
   });
 
   it("renders a fixed 5-step flow in the shared mobile shell with morning and evening inputs only", async () => {

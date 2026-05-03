@@ -16,6 +16,7 @@ import { auth } from "@/auth";
 const VALID_SETUP_PAYLOAD = {
   catName: "Milo",
   treatmentStartDate: "2026-01-10",
+  browserTimezone: "America/Los_Angeles",
   morningTime: "08:00",
   eveningTime: "20:00",
   defaultDosage: 1.5,
@@ -82,5 +83,89 @@ describe("POST /api/setup", () => {
     expect(schedule.trackingWindowMinutes).toBe(45);
     expect(schedule.isActive).toBe(true);
     expect(schedule.times.map((time) => time.timeOfDay)).toEqual(["08:00", "20:00"]);
+
+    const user = await prisma.user.findUniqueOrThrow({
+      where: { id: AUTHED_SESSION.user.id },
+    });
+    expect(user.timezone).toBe("America/Los_Angeles");
+
+    const events = await prisma.injectionEvent.findMany({
+      where: { scheduleId: schedule.id },
+      orderBy: { scheduledAt: "asc" },
+      take: 2,
+    });
+    expect(events.map((event) => event.scheduledAt.toISOString())).toEqual([
+      "2026-01-10T16:00:00.000Z",
+      "2026-01-11T04:00:00.000Z",
+    ]);
+  });
+
+  it("returns field errors for DST-gap times instead of raising a 500", async () => {
+    await seedAuthedUser();
+
+    const { POST } = await import("@/app/api/setup/route");
+    const request = createSetupRequest(
+      JSON.stringify({
+        ...VALID_SETUP_PAYLOAD,
+        treatmentStartDate: "2026-03-07",
+        browserTimezone: "America/New_York",
+        morningTime: "02:00",
+      }),
+    );
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      errors: {
+        morningTime: ["Time does not exist in your timezone because of daylight saving time"],
+      },
+    });
+  });
+
+  it("returns past-date errors on treatmentStartDate", async () => {
+    await seedAuthedUser();
+
+    const { POST } = await import("@/app/api/setup/route");
+    const oldDate = new Date();
+    oldDate.setUTCHours(0, 0, 0, 0);
+    oldDate.setUTCDate(oldDate.getUTCDate() - 366);
+    const treatmentStartDate = oldDate.toISOString().slice(0, 10);
+    const request = createSetupRequest(
+      JSON.stringify({
+        ...VALID_SETUP_PAYLOAD,
+        treatmentStartDate,
+      }),
+    );
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      errors: {
+        treatmentStartDate: ["Start date cannot be more than 1 year in the past"],
+      },
+    });
+  });
+
+  it("returns 400 for malformed times instead of crashing during DST checks", async () => {
+    await seedAuthedUser();
+
+    const { POST } = await import("@/app/api/setup/route");
+    const request = createSetupRequest(
+      JSON.stringify({
+        ...VALID_SETUP_PAYLOAD,
+        morningTime: "99:99",
+      }),
+    );
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      errors: {
+        morningTime: ["Morning time must be a real 24-hour time"],
+      },
+    });
   });
 });

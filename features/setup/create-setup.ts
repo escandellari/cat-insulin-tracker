@@ -20,9 +20,9 @@ export async function createSetup(prisma: PrismaClient, userId: string, input: S
         throw new SetupAlreadyExistsError();
       }
 
-      const user = await tx.user.findUniqueOrThrow({
+      await tx.user.update({
         where: { id: userId },
-        select: { timezone: true },
+        data: { timezone: input.browserTimezone },
       });
 
       const cat = await tx.cat.create({
@@ -53,7 +53,7 @@ export async function createSetup(prisma: PrismaClient, userId: string, input: S
           catId: cat.id,
           scheduleId: schedule.id,
           startDate: input.treatmentStartDate,
-          timezone: user.timezone,
+          timezone: input.browserTimezone,
           injectionTimes: [input.morningTime, input.eveningTime],
         }),
       });

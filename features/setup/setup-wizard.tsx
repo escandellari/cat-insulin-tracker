@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
-import { getLocalDateString } from "./local-date";
+import { getBrowserTimezone, getLocalDateString } from "./local-date";
 import {
   applyFieldErrors,
   getDefaultSetupFormValues,
@@ -38,7 +38,7 @@ export function SetupWizard({
   defaultDateValues: SetupWizardDateDefaults;
 }) {
   const router = useRouter();
-  const didHydrateBrowserDefaults = useRef(false);
+  const didHydrateClientDefaults = useRef(false);
   const [step, setStep] = useState(0);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const lastStep = 4;
@@ -57,16 +57,18 @@ export function SetupWizard({
   });
 
   useEffect(() => {
-    if (defaultDateValues.kind !== "browser" || didHydrateBrowserDefaults.current) {
+    if (didHydrateClientDefaults.current) {
       return;
     }
 
-    didHydrateBrowserDefaults.current = true;
+    didHydrateClientDefaults.current = true;
 
     reset(
       {
         ...getValues(),
-        treatmentStartDate: getLocalDateString(),
+        browserTimezone: getBrowserTimezone(),
+        treatmentStartDate:
+          defaultDateValues.kind === "browser" ? getLocalDateString() : getValues("treatmentStartDate"),
       },
       { keepDirtyValues: true },
     );
@@ -132,6 +134,7 @@ export function SetupWizard({
   return (
     <MobileShell>
       <form onSubmit={onSubmit} className="space-y-6">
+        <input type="hidden" {...register("browserTimezone")} />
         <div className="space-y-3">
           <p className="text-center text-xs font-medium uppercase tracking-[0.2em] text-sage-600">
             Setup

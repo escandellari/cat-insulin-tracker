@@ -34,9 +34,12 @@ export function stubLocalDate(isoString: string, localDate: { year: number; mont
 
 export function stubBrowserDateDefaults() {
   stubLocalDate("2026-01-11T07:30:00.000Z", { year: 2026, month: 0, day: 10 });
-  vi.stubGlobal("Intl", {
-    DateTimeFormat: () => ({
-      resolvedOptions: () => ({ timeZone: "America/Los_Angeles" }),
-    }),
-  } as typeof Intl);
+  const realDateTimeFormat = Intl.DateTimeFormat;
+  vi.spyOn(Intl, "DateTimeFormat").mockImplementation(((locales?: string | string[], options?: Intl.DateTimeFormatOptions) => {
+    if (locales === undefined && options === undefined) {
+      return realDateTimeFormat(undefined, { timeZone: "America/Los_Angeles" });
+    }
+
+    return realDateTimeFormat(locales as any, options);
+  }) as typeof Intl.DateTimeFormat);
 }

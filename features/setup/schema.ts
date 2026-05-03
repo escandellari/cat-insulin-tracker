@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { scheduleHasDstGap } from "@/features/scheduling";
 
 const ONE_YEAR_IN_DAYS = 365;
 
@@ -28,8 +29,17 @@ function isRealTimeOfDay(value: string) {
   return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59;
 }
 
-function addStartDateRangeIssue(scheduleStartDate: string, ctx: z.RefinementCtx) {
-  const startDate = new Date(`${scheduleStartDate}T00:00:00.000Z`);
+function isValidTimezone(value: string) {
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function addStartDateRangeIssue(treatmentStartDate: string, ctx: z.RefinementCtx) {
+  const startDate = new Date(`${treatmentStartDate}T00:00:00.000Z`);
   const cutoff = new Date();
   cutoff.setUTCHours(0, 0, 0, 0);
   cutoff.setUTCDate(cutoff.getUTCDate() - ONE_YEAR_IN_DAYS);
@@ -37,8 +47,44 @@ function addStartDateRangeIssue(scheduleStartDate: string, ctx: z.RefinementCtx)
   if (startDate < cutoff) {
     ctx.addIssue({
       code: "custom",
-      path: ["scheduleStartDate"],
+      path: ["treatmentStartDate"],
       message: "Start date cannot be more than 1 year in the past",
+    });
+  }
+}
+
+function addDstGapIssue(
+  field: "morningTime" | "eveningTime",
+  {
+    treatmentStartDate,
+    browserTimezone,
+    timeOfDay,
+  }: {
+    treatmentStartDate: string;
+    browserTimezone: string;
+    timeOfDay: string;
+  },
+  ctx: z.RefinementCtx,
+) {
+  if (
+    !isRealCalendarDate(treatmentStartDate) ||
+    !isValidTimezone(browserTimezone) ||
+    !isRealTimeOfDay(timeOfDay)
+  ) {
+    return;
+  }
+
+  if (
+    scheduleHasDstGap({
+      startDate: treatmentStartDate,
+      timezone: browserTimezone,
+      injectionTimes: [timeOfDay],
+    })
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      path: [field],
+      message: "Time does not exist in your timezone because of daylight saving time",
     });
   }
 }
@@ -49,6 +95,7 @@ export const setupFieldSchemas = {
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Start date is required")
     .refine(isRealCalendarDate, "Start date must be a real calendar date"),
+  browserTimezone: z.string().trim().min(1).refine(isValidTimezone, "Timezone is invalid"),
   morningTime: z.string().trim().min(1, "Morning time is required").refine(isRealTimeOfDay, {
     message: "Morning time must be a real 24-hour time",
   }),
@@ -63,6 +110,26 @@ const setupBaseSchema = z.object(setupFieldSchemas);
 
 export const setupSchema = setupBaseSchema.superRefine((value, ctx) => {
   addStartDateRangeIssue(value.treatmentStartDate, ctx);
+
+  addDstGapIssue(
+    "morningTime",
+    {
+      treatmentStartDate: value.treatmentStartDate,
+      browserTimezone: value.browserTimezone,
+      timeOfDay: value.morningTime,
+    },
+    ctx,
+  );
+
+  addDstGapIssue(
+    "eveningTime",
+    {
+      treatmentStartDate: value.treatmentStartDate,
+      browserTimezone: value.browserTimezone,
+      timeOfDay: value.eveningTime,
+    },
+    ctx,
+  );
 
   if (value.morningTime === value.eveningTime) {
     ctx.addIssue({
