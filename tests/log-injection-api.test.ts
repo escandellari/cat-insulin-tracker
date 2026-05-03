@@ -52,6 +52,7 @@ describe("POST /api/injections/log", () => {
       dosageGiven: 1.5,
       needlesUsed: 1,
       actualGivenAt: "2026-01-10T13:05:00.000Z",
+      site: "left-shoulder",
       notes: null,
       createdAt: new Date(),
     });
@@ -64,6 +65,7 @@ describe("POST /api/injections/log", () => {
         actualGivenAt: "2026-01-10T13:05:00.000Z",
         dosageGiven: 1.5,
         needlesUsed: 1,
+        site: "left-shoulder",
       }),
     });
 
@@ -83,6 +85,7 @@ describe("POST /api/injections/log", () => {
         actualGivenAt: "2026-01-10T13:05:00.000Z",
         dosageGiven: 1.5,
         needlesUsed: 1,
+        site: "left-shoulder",
         notes: undefined,
       },
     });
@@ -103,6 +106,7 @@ describe("POST /api/injections/log", () => {
         actualGivenAt: "2026-01-10T13:05:00.000Z",
         dosageGiven: 1.5,
         needlesUsed: 1,
+        site: "left-shoulder",
       }),
     });
 
@@ -151,6 +155,7 @@ describe("POST /api/injections/log", () => {
         actualGivenAt: "2026-01-10T13:05:00.000Z",
         dosageGiven: 1.5,
         needlesUsed: 1,
+        site: "left-shoulder",
       }),
     });
 

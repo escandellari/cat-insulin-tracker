@@ -5,6 +5,7 @@ CREATE TABLE "InjectionLog" (
     "dosageGiven" DECIMAL(10,2) NOT NULL,
     "needlesUsed" INTEGER NOT NULL,
     "actualGivenAt" TIMESTAMP(3) NOT NULL,
+    "site" TEXT NOT NULL,
     "notes" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 

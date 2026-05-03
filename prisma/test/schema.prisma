@@ -110,6 +110,7 @@ model InjectionLog {
   dosageGiven   Float
   needlesUsed   Int
   actualGivenAt String
+  site          String
   notes         String?
   createdAt     DateTime @default(now())
   event         InjectionEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)

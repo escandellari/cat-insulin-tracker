@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { logInjectionSchema, type LogInjectionInput } from "@/features/injections";
+import { injectionSites, logInjectionSchema, type LogInjectionInput } from "@/features/injections";
 import { format } from "date-fns";
 
 type LogInjectionSheetProps = {
@@ -30,6 +30,7 @@ export function LogInjectionSheet({ eventId, scheduledAt, defaultDosage, onClose
       actualGivenAt: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
       dosageGiven: defaultDosage,
       needlesUsed: 1,
+      site: "left-shoulder",
     },
   });
 
@@ -91,6 +92,21 @@ export function LogInjectionSheet({ eventId, scheduledAt, defaultDosage, onClose
               className="mt-1 block w-full rounded-lg border border-sage-200 px-3 py-2"
             />
             {errors.needlesUsed && <p className="mt-1 text-sm text-red-600">{errors.needlesUsed.message}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-sage-700">Injection site</label>
+            <select
+              {...register("site")}
+              className="mt-1 block w-full rounded-lg border border-sage-200 px-3 py-2"
+            >
+              {injectionSites.map((site) => (
+                <option key={site} value={site}>
+                  {site.replace("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase())}
+                </option>
+              ))}
+            </select>
+            {errors.site && <p className="mt-1 text-sm text-red-600">{errors.site.message}</p>}
           </div>
 
           <div>

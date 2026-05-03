@@ -113,6 +113,7 @@ model InjectionLog {
   dosageGiven   Decimal   @db.Decimal(10, 2)
   needlesUsed   Int
   actualGivenAt DateTime
+  site          String
   notes         String?
   createdAt     DateTime  @default(now())
   event         InjectionEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)

@@ -43,6 +43,7 @@ describe("LogInjectionWrapper", () => {
     // Sheet should now be visible with prefilled data
     expect(screen.getByText("Log Injection")).toBeInTheDocument();
     expect(screen.getByDisplayValue("1.5")).toBeInTheDocument();
+    expect(screen.getByRole("combobox")).toHaveValue("left-shoulder");
   });
 
   it("submits form and closes sheet on success", async () => {
@@ -65,7 +66,10 @@ describe("LogInjectionWrapper", () => {
     // Should have called the API
     expect(mockFetch).toHaveBeenCalledWith(
       "/api/injections/log",
-      expect.objectContaining({ method: "POST" })
+      expect.objectContaining({
+        method: "POST",
+        body: expect.stringContaining('"site":"left-shoulder"'),
+      })
     );
     expect(mockRefresh).toHaveBeenCalled();
     expect(screen.queryByText("Log Injection")).not.toBeInTheDocument();

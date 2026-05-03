@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { eventId, actualGivenAt, dosageGiven, needlesUsed, notes } = parsed.data;
+    const { eventId, actualGivenAt, dosageGiven, needlesUsed, site, notes } = parsed.data;
 
     const event = await prisma.injectionEvent.findUnique({
       where: { id: eventId },
@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
         actualGivenAt: actualGivenAt,
         dosageGiven,
         needlesUsed,
+        site,
         notes,
       },
     });
