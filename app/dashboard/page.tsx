@@ -154,9 +154,15 @@ export default async function DashboardPage() {
                 <p className="text-sm text-sage-600">{view.nextEvent.dueWindowLabel}</p>
               </div>
             </div>
-            <button type="button" className={`w-full hover:bg-brand-dark ${mobilePrimaryButtonClassName}`}>
+            <button
+              type="button"
+              disabled
+              aria-disabled="true"
+              className={`w-full cursor-not-allowed opacity-50 ${mobilePrimaryButtonClassName}`}
+            >
               Log injection now
             </button>
+            <p className="text-sm text-sage-600">Logging flow arrives in the next phase.</p>
           </section>
         ) : null}
 

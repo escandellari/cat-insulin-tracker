@@ -214,6 +214,8 @@ describe("Dashboard page", () => {
     expect(html).toContain("8:00 AM");
     expect(html).toContain("1.5 units");
     expect(html).toContain("45 minute window");
+    expect(html).toContain("Logging flow arrives in the next phase.");
+    expect(html).toContain("disabled");
     expect(html).toContain("Today&#x27;s injections");
     expect(html).toContain("Upcoming");
     expect(html).toContain("Jan 11, 2026, 8:00 AM");
@@ -268,5 +270,50 @@ describe("Dashboard page", () => {
     expect(html).toContain("Today&#x27;s injections");
     expect(html).toContain("Missed");
     expect(html).toContain("Jan 11, 2026, 8:00 AM");
+  });
+
+  it("treats persisted completed events as logged until log relations exist", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-10T15:00:00.000Z"));
+
+    vi.mocked(auth).mockResolvedValue(AUTHED_SESSION as any);
+    vi.mocked(prisma.cat.findFirst).mockResolvedValue({
+      id: "cat-1",
+      name: "Milo",
+      userId: AUTHED_SESSION.user.id,
+      user: {
+        timezone: "America/New_York",
+      },
+      createdAt: new Date(),
+    } as any);
+    vi.mocked(prisma.injectionEvent.findMany).mockResolvedValue([
+      {
+        id: "event-completed",
+        status: "COMPLETED",
+        scheduledAt: new Date("2026-01-10T13:00:00.000Z"),
+        schedule: {
+          trackingWindowMinutes: 45,
+          missedThresholdHours: 12,
+          defaultDosage: { toString: () => "1.5" },
+        },
+      },
+      {
+        id: "event-next",
+        status: "UPCOMING",
+        scheduledAt: new Date("2026-01-11T13:00:00.000Z"),
+        schedule: {
+          trackingWindowMinutes: 45,
+          missedThresholdHours: 12,
+          defaultDosage: { toString: () => "1.5" },
+        },
+      },
+    ] as any);
+
+    const DashboardPage = await getDashboardPage();
+    const html = toHtml((await DashboardPage()) as React.ReactElement);
+
+    expect(html).toContain("Logged");
+    expect(html).toContain("Jan 11, 2026, 8:00 AM");
+    expect(html).not.toContain("Late");
   });
 });
