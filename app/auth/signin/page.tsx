@@ -1,5 +1,5 @@
 import { signIn } from "@/auth";
-import { MobileShell } from "@/features/setup";
+import { MobileShell, mobilePrimaryButtonClassName } from "@/features/setup";
 
 export default function SignInPage() {
   return (
@@ -18,7 +18,7 @@ export default function SignInPage() {
         >
           <button
             type="submit"
-            className="w-full rounded-full bg-brand px-6 py-3.5 font-medium text-white hover:bg-brand-dark"
+            className={`w-full ${mobilePrimaryButtonClassName} hover:bg-brand-dark`}
           >
             Sign in with Google
           </button>

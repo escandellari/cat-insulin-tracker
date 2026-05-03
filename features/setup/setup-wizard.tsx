@@ -12,7 +12,11 @@ import {
   isValidationErrorResponse,
   type SetupWizardDateDefaults,
 } from "./setup-wizard-helpers";
-import { MobileShell } from "./mobile-shell";
+import {
+  MobileShell,
+  mobilePrimaryButtonClassName,
+  mobileSecondaryButtonClassName,
+} from "./mobile-shell";
 import {
   CatStep,
   DosageStep,
@@ -156,7 +160,7 @@ export function SetupWizard({
           {step > 0 && (
             <button
               type="button"
-              className="flex-1 rounded-full border border-sage-200 bg-white px-6 py-3.5 font-medium text-sage-950"
+              className={`flex-1 ${mobileSecondaryButtonClassName}`}
               onClick={() => setStep((current) => current - 1)}
             >
               Back
@@ -166,7 +170,7 @@ export function SetupWizard({
           {step < lastStep ? (
             <button
               type="button"
-              className="flex-1 rounded-full bg-brand px-6 py-3.5 font-medium text-white"
+              className={`flex-1 ${mobilePrimaryButtonClassName}`}
               onClick={nextStep}
             >
               Continue
@@ -175,7 +179,7 @@ export function SetupWizard({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 rounded-full bg-brand px-6 py-3.5 font-medium text-white disabled:opacity-50"
+              className={`flex-1 ${mobilePrimaryButtonClassName} disabled:opacity-50`}
             >
               Complete setup
             </button>
