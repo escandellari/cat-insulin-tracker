@@ -8,8 +8,7 @@ export const push = vi.fn();
 export const DEFAULT_WIZARD_PROPS = {
   defaultDateValues: {
     kind: "fixed",
-    timezone: "America/New_York",
-    scheduleStartDate: "2026-01-10",
+    treatmentStartDate: "2026-01-10",
   },
 } as const;
 
@@ -27,11 +26,11 @@ export async function renderBrowserDefaultsDateStep() {
     },
   });
   completeCatStep();
-  completeScheduleStep();
+  completeStartDateStep();
 }
 
 export function clickNext() {
-  fireEvent.click(screen.getByRole("button", { name: "Next" }));
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 }
 
 export function completeCatStep(catName = "Milo") {
@@ -41,43 +40,60 @@ export function completeCatStep(catName = "Milo") {
   clickNext();
 }
 
-export function completeScheduleStep({
-  injectionTimes = ["08:00"],
-  defaultDosage,
-  defaultNeedlesPerInjection,
+export function completeStartDateStep(treatmentStartDate = "2026-01-10") {
+  fireEvent.change(screen.getByLabelText("Start date"), {
+    target: { value: treatmentStartDate },
+  });
+  clickNext();
+}
+
+export function completeInjectionTimesStep({
+  morningTime = "08:00",
+  eveningTime = "20:00",
 }: {
-  injectionTimes?: string[];
-  defaultDosage?: string;
-  defaultNeedlesPerInjection?: string;
+  morningTime?: string;
+  eveningTime?: string;
 } = {}) {
-  fireEvent.change(screen.getByLabelText("Injection time 1"), {
-    target: { value: injectionTimes[0] ?? "08:00" },
+  fireEvent.change(screen.getByLabelText("Morning injection"), {
+    target: { value: morningTime },
   });
-
-  injectionTimes.slice(1).forEach((time, index) => {
-    fireEvent.click(screen.getByRole("button", { name: "Add injection time" }));
-    fireEvent.change(screen.getByLabelText(`Injection time ${index + 2}`), {
-      target: { value: time },
-    });
+  fireEvent.change(screen.getByLabelText("Evening injection"), {
+    target: { value: eveningTime },
   });
+  clickNext();
+}
 
+export function completeDosageStep({
+  defaultDosage,
+  dueWindowMinutes,
+}: {
+  defaultDosage?: string;
+  dueWindowMinutes?: string;
+} = {}) {
   if (defaultDosage !== undefined) {
     fireEvent.change(screen.getByLabelText("Default dosage"), {
       target: { value: defaultDosage },
     });
   }
 
-  if (defaultNeedlesPerInjection !== undefined) {
-    fireEvent.change(screen.getByLabelText("Default needles per injection"), {
-      target: { value: defaultNeedlesPerInjection },
+  if (dueWindowMinutes !== undefined) {
+    fireEvent.change(screen.getByLabelText("Due window"), {
+      target: { value: dueWindowMinutes },
     });
   }
 
   clickNext();
 }
 
-export function goToReviewStep(options?: Parameters<typeof completeScheduleStep>[0]) {
+export function goToReviewStep(options?: {
+  treatmentStartDate?: string;
+  morningTime?: string;
+  eveningTime?: string;
+  defaultDosage?: string;
+  dueWindowMinutes?: string;
+}) {
   completeCatStep();
-  completeScheduleStep(options);
-  clickNext();
+  completeStartDateStep(options?.treatmentStartDate);
+  completeInjectionTimesStep(options);
+  completeDosageStep(options);
 }

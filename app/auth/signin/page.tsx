@@ -1,11 +1,15 @@
 import { signIn } from "@/auth";
+import { MobileShell } from "@/features/setup";
 
 export default function SignInPage() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4">
-      <div className="max-w-md w-full space-y-6 text-center">
-        <h1 className="text-3xl font-bold">Cat Insulin Tracker</h1>
-        <p className="text-muted-foreground">Sign in to manage your cat&apos;s insulin schedule</p>
+    <MobileShell>
+      <div className="space-y-6 text-center">
+        <div className="space-y-3">
+          <div className="text-4xl">🐱</div>
+          <h1 className="text-2xl font-medium text-sage-950">Cat Insulin Tracker</h1>
+          <p className="text-sm text-sage-600">Sign in to manage your cat&apos;s insulin schedule</p>
+        </div>
         <form
           action={async () => {
             "use server";
@@ -14,12 +18,12 @@ export default function SignInPage() {
         >
           <button
             type="submit"
-            className="w-full rounded-md bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
+            className="w-full rounded-full bg-brand px-6 py-3.5 font-medium text-white hover:bg-brand-dark"
           >
             Sign in with Google
           </button>
         </form>
       </div>
-    </main>
+    </MobileShell>
   );
 }

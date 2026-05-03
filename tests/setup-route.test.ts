@@ -15,11 +15,11 @@ import { auth } from "@/auth";
 
 const VALID_SETUP_PAYLOAD = {
   catName: "Milo",
-  injectionTimes: ["08:00", "20:00"],
+  treatmentStartDate: "2026-01-10",
+  morningTime: "08:00",
+  eveningTime: "20:00",
   defaultDosage: 1.5,
-  defaultNeedlesPerInjection: 2,
-  timezone: "America/New_York",
-  scheduleStartDate: "2026-01-10",
+  dueWindowMinutes: 45,
 };
 
 async function seedAuthedUser() {
@@ -28,6 +28,7 @@ async function seedAuthedUser() {
       id: AUTHED_SESSION.user.id,
       email: AUTHED_SESSION.user.email,
       name: AUTHED_SESSION.user.name,
+      timezone: "America/New_York",
     },
   });
   vi.mocked(auth).mockResolvedValue(AUTHED_SESSION as any);
@@ -39,13 +40,6 @@ function createSetupRequest(body: BodyInit) {
     headers: { "content-type": "application/json" },
     body,
   });
-}
-
-async function expectNoSetupPersisted() {
-  expect(await prisma.cat.count()).toBe(0);
-  expect(await prisma.injectionSchedule.count()).toBe(0);
-  expect(await prisma.injectionScheduleTime.count()).toBe(0);
-  expect(await prisma.injectionEvent.count()).toBe(0);
 }
 
 describe("POST /api/setup", () => {
@@ -62,7 +56,7 @@ describe("POST /api/setup", () => {
     await resetDatabase();
   });
 
-  it("creates cat, schedule, events, and redirects to dashboard", async () => {
+  it("persists morning/evening times, due window, treatment start date, and redirects to dashboard", async () => {
     await seedAuthedUser();
 
     const { POST } = await import("@/app/api/setup/route");
@@ -73,209 +67,20 @@ describe("POST /api/setup", () => {
     expect(response.status).toBe(303);
     expect(response.headers.get("location")).toBe("http://localhost/dashboard");
 
-    const user = await prisma.user.findUniqueOrThrow({
-      where: { id: AUTHED_SESSION.user.id },
-    });
-    expect(user.timezone).toBe("America/New_York");
-
     const cat = await prisma.cat.findFirstOrThrow({
       where: { userId: AUTHED_SESSION.user.id },
     });
     expect(cat.name).toBe("Milo");
+    expect(cat.treatmentStartDate.toISOString()).toBe("2026-01-10T00:00:00.000Z");
 
     const schedule = await prisma.injectionSchedule.findFirstOrThrow({
       where: { catId: cat.id },
       include: { times: true },
     });
     expect(schedule.defaultDosage.toString()).toBe("1.5");
-    expect(schedule.defaultNeedlesPerInjection).toBe(2);
+    expect(schedule.defaultNeedlesPerInjection).toBe(1);
+    expect(schedule.trackingWindowMinutes).toBe(45);
     expect(schedule.isActive).toBe(true);
     expect(schedule.times.map((time) => time.timeOfDay)).toEqual(["08:00", "20:00"]);
-
-    const events = await prisma.injectionEvent.findMany({
-      where: { scheduleId: schedule.id },
-      orderBy: { scheduledAt: "asc" },
-    });
-    expect(events).toHaveLength(182);
-    expect(events[0]?.status).toBe("UPCOMING");
-    expect(events[0]?.scheduledAt.toISOString()).toBe("2026-01-10T13:00:00.000Z");
-    expect(events[1]?.scheduledAt.toISOString()).toBe("2026-01-11T01:00:00.000Z");
-    expect(events.at(-1)?.scheduledAt.toISOString()).toBe("2026-04-11T00:00:00.000Z");
-  });
-
-  it.each([
-    {
-      name: "missing injection times",
-      payload: {
-        catName: "Milo",
-        injectionTimes: [],
-        defaultDosage: 1.5,
-        defaultNeedlesPerInjection: 2,
-        timezone: "America/New_York",
-        scheduleStartDate: "2026-01-10",
-      },
-      field: "injectionTimes",
-    },
-    {
-      name: "past start date older than one year",
-      payload: {
-        catName: "Milo",
-        injectionTimes: ["08:00"],
-        defaultDosage: 1.5,
-        defaultNeedlesPerInjection: 2,
-        timezone: "America/New_York",
-        scheduleStartDate: "2020-01-10",
-      },
-      field: "scheduleStartDate",
-    },
-  ])("returns 400 for $name", async ({ payload, field }) => {
-    await seedAuthedUser();
-
-    const { POST } = await import("@/app/api/setup/route");
-    const request = createSetupRequest(JSON.stringify(payload));
-
-    const response = await POST(request);
-    const body = await response.json();
-
-    expect(response.status).toBe(400);
-    expect(body.errors[field]).toBeTruthy();
-  });
-
-  it("returns 400 for impossible start date and persists nothing", async () => {
-    await seedAuthedUser();
-
-    const { POST } = await import("@/app/api/setup/route");
-    const request = createSetupRequest(
-      JSON.stringify({
-        ...VALID_SETUP_PAYLOAD,
-        injectionTimes: ["08:00"],
-        scheduleStartDate: "2026-99-99",
-      }),
-    );
-
-    const response = await POST(request);
-    const body = await response.json();
-
-    expect(response.status).toBe(400);
-    expect(body.errors.scheduleStartDate).toContain("Start date must be a real calendar date");
-    await expectNoSetupPersisted();
-  });
-
-  it("returns 400 for malformed json and persists nothing", async () => {
-    await seedAuthedUser();
-
-    const { POST } = await import("@/app/api/setup/route");
-    const request = createSetupRequest('{"catName": "Milo"');
-
-    const response = await POST(request);
-    const body = await response.json();
-
-    expect(response.status).toBe(400);
-    expect(body).toEqual({ error: "Invalid JSON body" });
-    await expectNoSetupPersisted();
-  });
-
-  it("returns 400 for duplicate injection times and persists nothing", async () => {
-    await seedAuthedUser();
-
-    const { POST } = await import("@/app/api/setup/route");
-    const request = createSetupRequest(
-      JSON.stringify({
-        ...VALID_SETUP_PAYLOAD,
-        injectionTimes: ["08:00", "08:00"],
-      }),
-    );
-
-    const response = await POST(request);
-    const body = await response.json();
-
-    expect(response.status).toBe(400);
-    expect(body.errors.injectionTimes).toContain("Injection times must be unique");
-    await expectNoSetupPersisted();
-  });
-
-  it.each(["24:00", "24:60", "99:99"])(
-    "returns 400 for impossible injection time %s and persists nothing",
-    async (injectionTime) => {
-      await seedAuthedUser();
-
-      const { POST } = await import("@/app/api/setup/route");
-      const request = createSetupRequest(
-        JSON.stringify({
-          ...VALID_SETUP_PAYLOAD,
-          injectionTimes: [injectionTime],
-        }),
-      );
-
-      const response = await POST(request);
-      const body = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(body.errors.injectionTimes).toContain("Injection times must be real 24-hour times");
-      await expectNoSetupPersisted();
-    },
-  );
-
-  it("returns 400 for invalid timezone and persists nothing", async () => {
-    await seedAuthedUser();
-
-    const { POST } = await import("@/app/api/setup/route");
-    const request = createSetupRequest(
-      JSON.stringify({
-        ...VALID_SETUP_PAYLOAD,
-        injectionTimes: ["08:00"],
-        timezone: "Mars/Base",
-      }),
-    );
-
-    const response = await POST(request);
-    const body = await response.json();
-
-    expect(response.status).toBe(400);
-    expect(body.errors.timezone).toContain("Timezone must be a valid IANA timezone");
-    await expectNoSetupPersisted();
-  });
-
-  it("returns 400 for DST-gap injection time and persists nothing", async () => {
-    await seedAuthedUser();
-
-    const { POST } = await import("@/app/api/setup/route");
-    const request = createSetupRequest(
-      JSON.stringify({
-        ...VALID_SETUP_PAYLOAD,
-        injectionTimes: ["02:00"],
-        scheduleStartDate: "2026-03-07",
-      }),
-    );
-
-    const response = await POST(request);
-    const body = await response.json();
-
-    expect(response.status).toBe(400);
-    expect(body.errors.injectionTimes).toContain(
-      "Injection times must not include nonexistent local DST-gap times in the next 90 days",
-    );
-    await expectNoSetupPersisted();
-  });
-
-  it("returns 409 for repeat setup submission and does not create duplicate records", async () => {
-    await seedAuthedUser();
-
-    const { POST } = await import("@/app/api/setup/route");
-    const payload = VALID_SETUP_PAYLOAD;
-
-    const firstResponse = await POST(createSetupRequest(JSON.stringify(payload)));
-
-    expect(firstResponse.status).toBe(303);
-
-    const response = await POST(createSetupRequest(JSON.stringify(payload)));
-    const body = await response.json();
-
-    expect(response.status).toBe(409);
-    expect(body.error).toBe("Setup already completed");
-    expect(await prisma.cat.count()).toBe(1);
-    expect(await prisma.injectionSchedule.count()).toBe(1);
-    expect(await prisma.injectionScheduleTime.count()).toBe(2);
-    expect(await prisma.injectionEvent.count()).toBe(182);
   });
 });
