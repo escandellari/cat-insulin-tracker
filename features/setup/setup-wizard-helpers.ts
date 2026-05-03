@@ -7,27 +7,27 @@ export type SetupWizardDateDefaults =
     }
   | {
       kind: "fixed";
-      timezone: string;
-      scheduleStartDate: string;
+      treatmentStartDate: string;
     };
 
 const STEP_BY_FIELD: Partial<Record<keyof SetupFormInput, number>> = {
   catName: 0,
-  injectionTimes: 1,
-  defaultDosage: 1,
-  defaultNeedlesPerInjection: 1,
-  timezone: 2,
-  scheduleStartDate: 2,
+  treatmentStartDate: 1,
+  morningTime: 2,
+  eveningTime: 2,
+  defaultDosage: 3,
+  dueWindowMinutes: 3,
 };
 
 export function getDefaultSetupFormValues(defaultDateValues: SetupWizardDateDefaults): SetupFormInput {
   return {
     catName: "",
-    injectionTimes: [""],
+    treatmentStartDate: defaultDateValues.kind === "fixed" ? defaultDateValues.treatmentStartDate : "",
+    browserTimezone: "UTC",
+    morningTime: "08:00",
+    eveningTime: "20:00",
     defaultDosage: 0,
-    defaultNeedlesPerInjection: 0,
-    timezone: defaultDateValues.kind === "fixed" ? defaultDateValues.timezone : "",
-    scheduleStartDate: defaultDateValues.kind === "fixed" ? defaultDateValues.scheduleStartDate : "",
+    dueWindowMinutes: 0,
   };
 }
 

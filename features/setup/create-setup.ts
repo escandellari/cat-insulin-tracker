@@ -22,13 +22,14 @@ export async function createSetup(prisma: PrismaClient, userId: string, input: S
 
       await tx.user.update({
         where: { id: userId },
-        data: { timezone: input.timezone },
+        data: { timezone: input.browserTimezone },
       });
 
       const cat = await tx.cat.create({
         data: {
           userId,
           name: input.catName,
+          treatmentStartDate: new Date(`${input.treatmentStartDate}T00:00:00.000Z`),
         },
       });
 
@@ -36,9 +37,10 @@ export async function createSetup(prisma: PrismaClient, userId: string, input: S
         data: {
           catId: cat.id,
           defaultDosage: input.defaultDosage,
-          defaultNeedlesPerInjection: input.defaultNeedlesPerInjection,
+          defaultNeedlesPerInjection: 1,
+          trackingWindowMinutes: input.dueWindowMinutes,
           times: {
-            create: input.injectionTimes.map((timeOfDay, sortOrder) => ({
+            create: [input.morningTime, input.eveningTime].map((timeOfDay, sortOrder) => ({
               timeOfDay,
               sortOrder,
             })),
@@ -50,9 +52,9 @@ export async function createSetup(prisma: PrismaClient, userId: string, input: S
         data: generateInjectionEvents({
           catId: cat.id,
           scheduleId: schedule.id,
-          startDate: input.scheduleStartDate,
-          timezone: input.timezone,
-          injectionTimes: input.injectionTimes,
+          startDate: input.treatmentStartDate,
+          timezone: input.browserTimezone,
+          injectionTimes: [input.morningTime, input.eveningTime],
         }),
       });
 

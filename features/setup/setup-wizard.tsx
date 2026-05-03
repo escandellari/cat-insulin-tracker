@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
-import { getLocalDateString } from "./local-date";
+import { getBrowserTimezone, getLocalDateString } from "./local-date";
 import {
   applyFieldErrors,
   getDefaultSetupFormValues,
@@ -12,7 +12,18 @@ import {
   isValidationErrorResponse,
   type SetupWizardDateDefaults,
 } from "./setup-wizard-helpers";
-import { CatStep, DateStep, ReviewStep, ScheduleStep } from "./setup-wizard-steps";
+import {
+  MobileShell,
+  mobilePrimaryButtonClassName,
+  mobileSecondaryButtonClassName,
+} from "./mobile-shell";
+import {
+  CatStep,
+  DosageStep,
+  InjectionTimesStep,
+  ReviewStep,
+  StartDateStep,
+} from "./setup-wizard-steps";
 import {
   setupSchema,
   setupStepSchemas,
@@ -27,14 +38,14 @@ export function SetupWizard({
   defaultDateValues: SetupWizardDateDefaults;
 }) {
   const router = useRouter();
-  const didHydrateBrowserDefaults = useRef(false);
+  const didHydrateClientDefaults = useRef(false);
   const [step, setStep] = useState(0);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const lastStep = 4;
   const {
     register,
     watch,
     reset,
-    setValue,
     getValues,
     handleSubmit,
     setError,
@@ -46,29 +57,28 @@ export function SetupWizard({
   });
 
   useEffect(() => {
-    if (defaultDateValues.kind !== "browser" || didHydrateBrowserDefaults.current) {
+    if (didHydrateClientDefaults.current) {
       return;
     }
 
-    didHydrateBrowserDefaults.current = true;
+    didHydrateClientDefaults.current = true;
 
     reset(
       {
         ...getValues(),
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-        scheduleStartDate: getLocalDateString(),
+        browserTimezone: getBrowserTimezone(),
+        treatmentStartDate:
+          defaultDateValues.kind === "browser" ? getLocalDateString() : getValues("treatmentStartDate"),
       },
       { keepDirtyValues: true },
     );
   }, [defaultDateValues.kind, getValues, reset]);
 
-  const injectionTimes = watch("injectionTimes");
-
   async function nextStep() {
     const schema = setupStepSchemas[step];
 
     if (!schema) {
-      setStep((current) => Math.min(current + 1, 3));
+      setStep((current) => Math.min(current + 1, lastStep));
       return;
     }
 
@@ -81,20 +91,7 @@ export function SetupWizard({
     }
 
     clearErrors();
-    setStep((current) => Math.min(current + 1, 3));
-  }
-
-  function updateInjectionTime(index: number, value: string) {
-    const nextTimes = [...getValues("injectionTimes")];
-    nextTimes[index] = value;
-    setValue("injectionTimes", nextTimes, { shouldValidate: true, shouldDirty: true });
-  }
-
-  function addInjectionTime() {
-    setValue("injectionTimes", [...getValues("injectionTimes"), ""], {
-      shouldValidate: true,
-      shouldDirty: true,
-    });
+    setStep((current) => Math.min(current + 1, lastStep));
   }
 
   const onSubmit = handleSubmit(
@@ -135,42 +132,63 @@ export function SetupWizard({
   const values = watch();
 
   return (
-    <form onSubmit={onSubmit} className="space-y-6">
-      <h1 className="text-2xl font-bold">Set up your cat&apos;s profile</h1>
+    <MobileShell>
+      <form onSubmit={onSubmit} className="space-y-6">
+        <input type="hidden" {...register("browserTimezone")} />
+        <div className="space-y-3">
+          <p className="text-center text-xs font-medium uppercase tracking-[0.2em] text-sage-600">
+            Setup
+          </p>
+          <div className="flex gap-2" aria-label="Progress">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <span
+                key={index}
+                className={`h-2 flex-1 rounded-full ${index <= step ? "bg-brand" : "bg-sage-200"}`}
+              />
+            ))}
+          </div>
+        </div>
 
-      {step === 0 && <CatStep register={register} error={errors.catName?.message} />}
+        {step === 0 && <CatStep register={register} error={errors.catName?.message} />}
 
-      {step === 1 && (
-        <ScheduleStep
-          injectionTimes={injectionTimes}
-          register={register}
-          errors={errors}
-          updateInjectionTime={updateInjectionTime}
-          addInjectionTime={addInjectionTime}
-        />
-      )}
+        {step === 1 && <StartDateStep register={register} errors={errors} />}
 
-      {step === 2 && <DateStep register={register} errors={errors} />}
+        {step === 2 && <InjectionTimesStep register={register} errors={errors} />}
 
-      {step === 3 && <ReviewStep values={values} submitError={submitError} />}
+        {step === 3 && <DosageStep register={register} errors={errors} />}
 
-      <div className="flex gap-2">
-        {step > 0 && (
-          <button type="button" onClick={() => setStep((current) => current - 1)}>
-            Back
-          </button>
-        )}
+        {step === 4 && <ReviewStep values={values} submitError={submitError} />}
 
-        {step < 3 ? (
-          <button type="button" onClick={nextStep}>
-            Next
-          </button>
-        ) : (
-          <button type="submit" disabled={isSubmitting}>
-            Confirm setup
-          </button>
-        )}
-      </div>
-    </form>
+        <div className="flex gap-3">
+          {step > 0 && (
+            <button
+              type="button"
+              className={`flex-1 ${mobileSecondaryButtonClassName}`}
+              onClick={() => setStep((current) => current - 1)}
+            >
+              Back
+            </button>
+          )}
+
+          {step < lastStep ? (
+            <button
+              type="button"
+              className={`flex-1 ${mobilePrimaryButtonClassName}`}
+              onClick={nextStep}
+            >
+              Continue
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className={`flex-1 ${mobilePrimaryButtonClassName} disabled:opacity-50`}
+            >
+              Complete setup
+            </button>
+          )}
+        </div>
+      </form>
+    </MobileShell>
   );
 }

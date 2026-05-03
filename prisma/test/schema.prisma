@@ -59,6 +59,7 @@ model Cat {
   id                 String              @id @default(cuid())
   userId             String              @unique
   name               String
+  treatmentStartDate DateTime
   createdAt          DateTime            @default(now())
   user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   injectionSchedules InjectionSchedule[]
