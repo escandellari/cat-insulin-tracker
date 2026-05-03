@@ -7,9 +7,10 @@ type LogInjectionWrapperProps = {
   eventId: string;
   scheduledAt: Date;
   defaultDosage: number;
+  timezone: string;
 };
 
-export function LogInjectionWrapper({ eventId, scheduledAt, defaultDosage }: LogInjectionWrapperProps) {
+export function LogInjectionWrapper({ eventId, scheduledAt, defaultDosage, timezone }: LogInjectionWrapperProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -26,6 +27,7 @@ export function LogInjectionWrapper({ eventId, scheduledAt, defaultDosage }: Log
           eventId={eventId}
           scheduledAt={scheduledAt}
           defaultDosage={defaultDosage}
+          timezone={timezone}
           onClose={() => setIsOpen(false)}
         />
       )}

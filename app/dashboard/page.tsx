@@ -160,6 +160,7 @@ export default async function DashboardPage() {
                 eventId={view.nextEvent.id}
                 scheduledAt={view.nextEvent.scheduledAt}
                 defaultDosage={parseFloat(view.nextEvent.dosageLabel)}
+                timezone={cat.user.timezone}
               />
             ) : (
               <button

@@ -5,16 +5,17 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { injectionSites, logInjectionSchema, type LogInjectionInput } from "@/features/injections";
-import { format } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 
 type LogInjectionSheetProps = {
   eventId: string;
   scheduledAt: Date;
   defaultDosage: number;
+  timezone: string;
   onClose: () => void;
 };
 
-export function LogInjectionSheet({ eventId, scheduledAt, defaultDosage, onClose }: LogInjectionSheetProps) {
+export function LogInjectionSheet({ eventId, scheduledAt, defaultDosage, timezone, onClose }: LogInjectionSheetProps) {
   const [open, setOpen] = useState(true);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const router = useRouter();
@@ -27,7 +28,7 @@ export function LogInjectionSheet({ eventId, scheduledAt, defaultDosage, onClose
     resolver: zodResolver(logInjectionSchema),
     defaultValues: {
       eventId,
-      actualGivenAt: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+      actualGivenAt: formatInTimeZone(new Date(), timezone, "yyyy-MM-dd'T'HH:mm"),
       dosageGiven: defaultDosage,
       needlesUsed: 1,
       site: "left-shoulder",

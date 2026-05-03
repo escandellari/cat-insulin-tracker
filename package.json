@@ -10,7 +10,7 @@
     "lint": "next lint",
     "typecheck": "next build",
     "pretest": "prisma generate --schema=prisma/test/schema.prisma && prisma migrate deploy --schema=prisma/test/schema.prisma",
-    "test": "vitest run",
+    "test": "vitest run && vitest run --config vitest.client.config.ts",
     "test:watch": "vitest"
   },
   "dependencies": {
