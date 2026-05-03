@@ -55,7 +55,10 @@ describe("Dashboard page", () => {
     expect(redirect).toHaveBeenCalledWith("/setup");
   });
 
-  it("renders signed-in user's name in dashboard", async () => {
+  it("renders cat name and current date in the dashboard header", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-10T13:00:00.000Z"));
+
     vi.mocked(auth).mockResolvedValue(AUTHED_SESSION as any);
     vi.mocked(prisma.cat.findFirst).mockResolvedValue({
       id: "cat-1",
@@ -71,10 +74,14 @@ describe("Dashboard page", () => {
     const DashboardPage = await getDashboardPage();
     const html = toHtml((await DashboardPage()) as React.ReactElement);
 
-    expect(html).toContain("Jane Doe");
+    expect(html).toContain("Milo");
+    expect(html).toContain("Jan 10, 2026");
   });
 
-  it("shows at least one upcoming injection event after setup", async () => {
+  it("renders the upcoming section with localized future-day events", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-10T12:00:00.000Z"));
+
     vi.mocked(auth).mockResolvedValue(AUTHED_SESSION as any);
     vi.mocked(prisma.cat.findFirst).mockResolvedValue({
       id: "cat-1",
@@ -91,17 +98,22 @@ describe("Dashboard page", () => {
         status: "UPCOMING",
         scheduledAt: new Date("2026-01-10T13:00:00.000Z"),
       },
+      {
+        id: "event-2",
+        status: "UPCOMING",
+        scheduledAt: new Date("2026-01-11T13:00:00.000Z"),
+      },
     ] as any);
 
     const DashboardPage = await getDashboardPage();
     const html = toHtml((await DashboardPage()) as React.ReactElement);
 
-    expect(html).toContain("Upcoming injections");
-    expect(html).toContain("Jan 10, 2026, 8:00 AM");
+    expect(html).toContain("Upcoming");
+    expect(html).toContain("Jan 11, 2026, 8:00 AM");
     expect(html).not.toContain("2026-01-10T13:00:00.000Z");
   });
 
-  it("excludes past upcoming events from the dashboard list", async () => {
+  it("localizes current-day events without leaking raw timestamps", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-10T13:00:00.000Z"));
 
@@ -135,7 +147,126 @@ describe("Dashboard page", () => {
     const DashboardPage = await getDashboardPage();
     const html = toHtml((await DashboardPage()) as React.ReactElement);
 
-    expect(html).toContain("Jan 10, 2026, 8:00 AM");
+    expect(html).toContain("8:00 AM");
     expect(html).not.toContain("2026-01-10T12:59:59.000Z");
+  });
+
+  it("renders prototype dashboard sections with the next action, today's injections, upcoming events, and Home nav active", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-10T13:10:00.000Z"));
+
+    vi.mocked(auth).mockResolvedValue(AUTHED_SESSION as any);
+    vi.mocked(prisma.cat.findFirst).mockResolvedValue({
+      id: "cat-1",
+      name: "Milo",
+      userId: AUTHED_SESSION.user.id,
+      user: {
+        timezone: "America/New_York",
+      },
+      injectionSchedules: [
+        {
+          id: "schedule-1",
+          trackingWindowMinutes: 45,
+          defaultDosage: { toString: () => "1.5" },
+        },
+      ],
+      createdAt: new Date(),
+    } as any);
+    vi.mocked(prisma.injectionEvent.findMany).mockResolvedValue([
+      {
+        id: "event-due",
+        status: "UPCOMING",
+        scheduledAt: new Date("2026-01-10T13:00:00.000Z"),
+        schedule: {
+          id: "schedule-1",
+          trackingWindowMinutes: 45,
+          defaultDosage: { toString: () => "1.5" },
+        },
+      },
+      {
+        id: "event-later-today",
+        status: "UPCOMING",
+        scheduledAt: new Date("2026-01-11T01:00:00.000Z"),
+        schedule: {
+          id: "schedule-1",
+          trackingWindowMinutes: 45,
+          defaultDosage: { toString: () => "1.5" },
+        },
+      },
+      {
+        id: "event-tomorrow",
+        status: "UPCOMING",
+        scheduledAt: new Date("2026-01-11T13:00:00.000Z"),
+        schedule: {
+          id: "schedule-1",
+          trackingWindowMinutes: 45,
+          defaultDosage: { toString: () => "1.5" },
+        },
+      },
+    ] as any);
+
+    const DashboardPage = await getDashboardPage();
+    const html = toHtml((await DashboardPage()) as React.ReactElement);
+
+    expect(html).toContain("Milo");
+    expect(html).toContain("Jan 10, 2026");
+    expect(html).toContain("Next injection");
+    expect(html).toContain("8:00 AM");
+    expect(html).toContain("1.5 units");
+    expect(html).toContain("45 minute window");
+    expect(html).toContain("Today&#x27;s injections");
+    expect(html).toContain("Upcoming");
+    expect(html).toContain("Jan 11, 2026, 8:00 AM");
+    expect(html).toContain("Home");
+    expect(html).toContain('aria-current="page"');
+  });
+
+  it("keeps missed early-today events in today's section while leaving tomorrow in upcoming", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-11T04:30:00.000Z"));
+
+    vi.mocked(auth).mockResolvedValue(AUTHED_SESSION as any);
+    vi.mocked(prisma.cat.findFirst).mockResolvedValue({
+      id: "cat-1",
+      name: "Milo",
+      userId: AUTHED_SESSION.user.id,
+      user: {
+        timezone: "America/New_York",
+      },
+      createdAt: new Date(),
+    } as any);
+    vi.mocked(prisma.injectionEvent.findMany).mockImplementation(async (args: any) => {
+      const events = [
+        {
+          id: "event-missed",
+          status: "UPCOMING",
+          scheduledAt: new Date("2026-01-10T13:00:00.000Z"),
+          schedule: {
+            trackingWindowMinutes: 45,
+            missedThresholdHours: 12,
+            defaultDosage: { toString: () => "1.5" },
+          },
+        },
+        {
+          id: "event-next-day",
+          status: "UPCOMING",
+          scheduledAt: new Date("2026-01-11T13:00:00.000Z"),
+          schedule: {
+            trackingWindowMinutes: 45,
+            missedThresholdHours: 12,
+            defaultDosage: { toString: () => "1.5" },
+          },
+        },
+      ];
+
+      return events.filter((event) => event.scheduledAt >= args.where.scheduledAt.gte) as any;
+    });
+
+    const DashboardPage = await getDashboardPage();
+    const html = toHtml((await DashboardPage()) as React.ReactElement);
+
+    expect(html).toContain("Today&#x27;s injections");
+    expect(html).toContain("Missed");
+    expect(html).toContain("Jan 11, 2026, 8:00 AM");
   });
 });
