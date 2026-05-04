@@ -30,6 +30,10 @@ describe("Dashboard sign-out UI", () => {
       id: "cat-1",
       userId: AUTHED_SESSION.user.id,
       name: "Milo",
+      user: {
+        timezone: "America/New_York",
+      },
+      injectionSchedules: [],
       createdAt: new Date(),
     } as any);
     vi.mocked(prisma.injectionEvent.findMany).mockResolvedValue([] as any);

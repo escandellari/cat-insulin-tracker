@@ -10,7 +10,7 @@
     "lint": "next lint",
     "typecheck": "next build",
     "pretest": "prisma generate --schema=prisma/test/schema.prisma && prisma migrate deploy --schema=prisma/test/schema.prisma",
-    "test": "vitest run",
+    "test": "vitest run && vitest run --config vitest.client.config.ts",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -27,9 +27,10 @@
   },
   "devDependencies": {
     "@prisma/client": "^5.22.0",
-    "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",

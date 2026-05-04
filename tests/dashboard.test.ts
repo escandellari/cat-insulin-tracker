@@ -214,8 +214,8 @@ describe("Dashboard page", () => {
     expect(html).toContain("8:00 AM");
     expect(html).toContain("1.5 units");
     expect(html).toContain("45 minute window");
-    expect(html).toContain("Logging flow arrives in the next phase.");
-    expect(html).toContain("disabled");
+    expect(html).toContain("Log injection now");
+    expect(html).not.toContain("disabled");
     expect(html).toContain("Today&#x27;s injections");
     expect(html).toContain("Upcoming");
     expect(html).toContain("Jan 11, 2026, 8:00 AM");

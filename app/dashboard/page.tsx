@@ -7,6 +7,7 @@ import {
   mobilePrimaryButtonClassName,
   mobileSecondaryButtonClassName,
 } from "@/features/setup";
+import { LogInjectionWrapper } from "@/features/injections";
 
 const statusBadgeClassNames = {
   upcoming: "bg-[#FFF8E1] text-[#8B6914]",
@@ -154,15 +155,22 @@ export default async function DashboardPage() {
                 <p className="text-sm text-sage-600">{view.nextEvent.dueWindowLabel}</p>
               </div>
             </div>
-            <button
-              type="button"
-              disabled
-              aria-disabled="true"
-              className={`w-full cursor-not-allowed opacity-50 ${mobilePrimaryButtonClassName}`}
-            >
-              Log injection now
-            </button>
-            <p className="text-sm text-sage-600">Logging flow arrives in the next phase.</p>
+            {view.nextEvent.status === "due" || view.nextEvent.status === "late" ? (
+              <LogInjectionWrapper
+                eventId={view.nextEvent.id}
+                scheduledAt={view.nextEvent.scheduledAt}
+                defaultDosage={parseFloat(view.nextEvent.dosageLabel)}
+                timezone={cat.user.timezone}
+              />
+            ) : (
+              <button
+                type="button"
+                disabled
+                className={`w-full cursor-not-allowed opacity-50 ${mobilePrimaryButtonClassName}`}
+              >
+                Log injection now
+              </button>
+            )}
           </section>
         ) : null}
 

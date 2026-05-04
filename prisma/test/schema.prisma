@@ -13,9 +13,9 @@ model User {
   email         String    @unique
   name          String?
   timezone      String    @default("UTC")
-  emailVerified DateTime?
+  emailVerified String?
   image         String?
-  createdAt     DateTime  @default(now())
+  createdAt     String    @default("")
   accounts      Account[]
   sessions      Session[]
   cats          Cat[]
@@ -60,7 +60,7 @@ model Cat {
   userId             String              @unique
   name               String
   treatmentStartDate DateTime
-  createdAt          DateTime            @default(now())
+  createdAt           DateTime            @default(now())
   user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   injectionSchedules InjectionSchedule[]
   injectionEvents    InjectionEvent[]
@@ -69,7 +69,7 @@ model Cat {
 model InjectionSchedule {
   id                         String                  @id @default(cuid())
   catId                      String
-  defaultDosage              Decimal
+  defaultDosage              Float
   defaultNeedlesPerInjection Int
   trackingWindowMinutes      Int                     @default(30)
   missedThresholdHours       Int                     @default(12)
@@ -85,7 +85,7 @@ model InjectionScheduleTime {
   scheduleId String
   timeOfDay  String
   sortOrder  Int
-  schedule   InjectionSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  schedule    InjectionSchedule    @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
 
   @@unique([scheduleId, timeOfDay])
 }
@@ -99,6 +99,21 @@ model InjectionEvent {
   createdAt   DateTime             @default(now())
   cat         Cat                  @relation(fields: [catId], references: [id], onDelete: Cascade)
   schedule    InjectionSchedule    @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  logs        InjectionLog[]
 
   @@index([scheduleId, scheduledAt])
+}
+
+model InjectionLog {
+  id            String   @id @default(cuid())
+  eventId       String   @unique
+  dosageGiven   Float
+  needlesUsed   Int
+  actualGivenAt String
+  site          String
+  notes         String?
+  createdAt     DateTime @default(now())
+  event         InjectionEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
 }
