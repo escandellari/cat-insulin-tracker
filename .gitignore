@@ -42,3 +42,4 @@ next-env.d.ts
 prisma/test/test.db
 prisma/test/test.db-journal
 prisma/test/client
+.lattice/

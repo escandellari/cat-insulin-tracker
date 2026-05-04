@@ -2,289 +2,202 @@
 
 ## Problem Statement
 
-Managing a diabetic cat's insulin injections is error-prone and stressful. Caregivers need a reliable way to know when injections are due, log what was administered, and get advance warning before supplies run out — reducing the risk of missed doses or running out of insulin or needles unexpectedly.
+Managing a diabetic cat's insulin schedule is stressful and error-prone. Caregivers need a simple way to know what is due now, record what was given, and avoid running out of insulin or needles.
+
+## Product Direction
+
+Cat Insulin Tracker is a mobile-first web app for a single household caring for one cat in v1. The product should feel calm, clear, and low-friction. The visual direction is defined by `docs/PROTOTYPE_SPEC.md`: soft green palette, rounded cards, pill buttons, strong spacing, clear hierarchy, and a centered mobile shell.
 
 ## Goals
 
-- Zero missed injections due to forgetting
-- Supply depletion never comes as a surprise
-- Any caregiver in the household can log an injection without coordination overhead
-
----
-
-## Tech Stack
-
-Next.js 14 (App Router) · TypeScript · Tailwind CSS · shadcn/ui · Prisma · PostgreSQL (Supabase or Neon) · Auth.js v5 · react-hook-form · zod · Vercel
-
----
+- Make the next required action obvious
+- Reduce missed or duplicate injections
+- Make supply depletion visible before it becomes urgent
+- Keep logging fast enough to use while standing next to the cat
 
 ## Users
 
-Single household, one or more caregivers sharing one account. No multi-tenancy required in v1. Each injection log records who submitted it so caregivers can see what has already been given.
-
----
+One household sharing one account. Multiple caregivers may use the same login. The app should show enough history and status to avoid coordination mistakes.
 
 ## Scope
 
-**In scope:** calendar, injection logging, supply tracking, in-app low-supply notifications, dashboard, settings, single-household auth, history/log view
+### In scope for current MVP roadmap
 
-**Out of scope (v1):** push/email/SMS notifications, multiple cats, multiple households, barcode scanning, blood glucose integration, offline support, native mobile apps, CSV export (optional stretch goal)
+- Auth + first-time setup
+- Dashboard with next injection, today, upcoming, and supply summary
+- Injection logging
+- Supply tracking
+- Calendar view
+- Settings for schedule/defaults/preferences
 
----
+### Out of scope for current MVP roadmap
 
-## Features
+- Push/email/SMS reminders
+- Automated notification delivery engine
+- Multi-cat support
+- Multi-household roles/permissions
+- Blood glucose tracking
+- Native mobile apps
+- CSV/PDF export
+- Offline mode
+- Full history editing workflow
 
-### 1. Scheduled Injection Events
+## Guiding Decisions
 
-The app pre-populates injection events at fixed times configured by the user (e.g. 08:00 and 20:00). Events repeat indefinitely from a configured start date. Each event has one of the following statuses:
+- Use the current `app/` + `features/` structure; do not reorganize to match the prototype's suggested file layout.
+- Derive transient event UI states like `due`, `late`, and `missed` at read time.
+- Persist durable records like scheduled events, settings, logs, and supplies.
+- Keep setup and settings UI fixed to exactly two injection times in v1: morning and evening.
+- Store notification preferences only for now; do not build a full alerting engine in this MVP.
+- Use one generic supply model with a `type` field rather than separate top-level product concepts.
 
-| Status | Meaning |
-|--------|---------|
-| Upcoming | Before the tracking window opens |
-| Due | Within the configurable tracking window |
-| Completed | A log entry has been submitted |
-| Late | Logged after the tracking window closed |
-| Missed | Tracking window passed with no log |
-| Skipped | Manually marked by caregiver |
-| Partial | Logged with reduced dosage |
+## Design Requirements
 
-The Track button becomes available 30 minutes before the scheduled time (configurable) and remains active until the missed threshold (default 12 hours after scheduled time, configurable).
+- Mobile-first, centered max-width mobile container
+- Mint-to-white background treatment
+- White card surfaces with soft green borders
+- Pill primary/secondary actions
+- Visible labels, visible focus states, accessible validation
+- Reusable shared shell/components across all routes
 
-When settings change injection times, only future unlogged events are updated; past events are preserved as-is.
+## Core Product Requirements
 
-### 2. Calendar View
+### 1. Sign-in and first-time setup
 
-A monthly and weekly calendar displays all injection events colour-coded by status. The user can navigate between months and weeks. Clicking any event opens its detail view; clicking a due event opens the injection logging form directly.
+After sign-in, a user with no configured cat is sent to `/setup`. The setup experience should match the prototype style and collect:
 
-Empty states include guidance to configure injection times if none are set.
+- cat name
+- treatment start date
+- morning injection time
+- evening injection time
+- default dosage
+- due window in minutes
 
-### 3. Injection Logging
+The setup flow should be multi-step, mobile-friendly, and include a final review step. On completion, the app creates the cat, schedule, and future injection events, then redirects to `/dashboard`.
 
-When an event is due, a **Track** button is active on:
-- The calendar event detail
-- The dashboard
-- Any in-app notification
+### 2. Dashboard
 
-The form fields are:
+The dashboard is the primary home screen. It should show:
 
-| Field | Type | Required | Default |
-|-------|------|----------|---------|
-| Scheduled event | Read-only | — | Linked event |
-| Actual date/time | Datetime | Yes | Now (editable) |
-| Dosage given | Decimal number | Yes | Default dosage from settings |
-| Needles used | Integer ≥ 0 | Yes | 1 |
-| Injection site | Select + custom | No | — |
-| Outcome/status | Select | Yes | Completed |
-| Notes | Free text | No | — |
+- cat name and current date
+- next injection card
+- today's injections
+- upcoming events
+- supply summary cards
+- bottom navigation
 
-**Injection sites:** Left shoulder · Right shoulder · Left flank · Right flank · Scruff · Other
+If no setup exists, the user should be redirected to `/setup`.
 
-**Outcome values:** Completed · Partial dose · Skipped · Missed · Other
+### 3. Event status model
 
-**Validation:**
-- Dosage ≥ 0; needles ≥ 0
-- If Completed or Partial, dosage should normally be > 0 (warn but do not block)
-- If dosage exceeds a configurable threshold above the default, show a confirmation warning
+Scheduled injection events are persisted. UI-facing status is derived at read time from:
 
-**On submission:**
-- Injection log is created
-- Linked event is marked with the appropriate status
-- Active needle pack and insulin bottle are decremented
-- Supply run-out dates are recalculated
-- Notification schedule is updated if projections change
+- `scheduledAt`
+- current time
+- schedule tracking window / due window
+- whether a log exists
 
-**Concurrent logging:** If two caregivers attempt to log the same event simultaneously, the second submission is rejected with a clear message that the event is already logged.
+The product must support these user-facing states:
 
-**Retroactive entries:** A log submitted outside the active time window is accepted but flagged as late.
+- pending/upcoming
+- due
+- late
+- missed
+- logged
 
-If an event is missed, the user can either log a late injection or mark it as skipped/missed.
+### 4. Injection logging
 
-### 4. Supply Tracking
+Caregivers must be able to log a due injection quickly from dashboard and calendar flows.
 
-**Needle packs and insulin bottles are tracked independently.** The user records when a new supply is opened. Only one of each type is active at a time; starting a new one deactivates the previous.
+The logging experience should be a modal/sheet-style flow in the prototype style. It should capture:
 
-**Needle pack fields:** label (optional) · start date · total needles · starting remaining count · notes
+- scheduled event reference
+- actual timestamp
+- dosage
+- needles used
+- injection site
+- optional notes
 
-**Insulin bottle fields:** label (optional) · insulin name · start date · total amount · unit (default: units) · starting remaining amount · notes
+Submission creates exactly one log for the event. Duplicate concurrent submissions must be rejected cleanly.
 
-The dashboard shows remaining quantity and estimated run-out date for each active supply.
+### 5. Supply tracking
 
-### 5. Supply Depletion Calculation
+The app must track insulin and needle inventory. Users can record a new vial or pack, see remaining quantity, and see projected depletion.
 
-Run-out projections use a **7-day rolling average** of actual usage. If fewer than 7 days of logs exist, the fallback rate is the number of scheduled daily injections multiplied by the default quantity per injection.
+For v1, inline supply warnings on dashboard/supplies are enough. A full notification engine is not required.
 
-Remaining needles equal the starting count minus total needles used across all logs since the pack's start date. Estimated needle run-out is today plus the result of dividing remaining needles by average daily needle usage. Insulin remaining and insulin run-out are calculated the same way using dosage values.
+### 6. Calendar
 
-**Edge cases:**
-- If estimated daily usage is 0 → show "insufficient usage data"
-- If remaining ≤ 0 → show "depleted"
-- Editing or deleting a past log triggers full recalculation from the active supply's start date
-- If a new supply is opened with a past start date, prompt user whether to apply historical logs from that date
+The app must provide a calendar view for browsing injection schedule and history. It should support week/month navigation and reuse the same event-state and logging logic as dashboard.
 
-### 6. Low-Supply Notifications
+### 7. Settings
 
-In-app notifications only (v1). Notifications persist until dismissed or a new supply is recorded.
+Users must be able to edit:
 
-| Trigger | Message |
-|---------|---------|
-| 5 days before projected run-out | "⚠ Needle pack / insulin bottle expected to run out in 5 days." |
-| 1 day before projected run-out | "🚨 Needle pack / insulin bottle expected to run out tomorrow." |
-| Projected run-out date | "🚨 Needle pack / insulin bottle expected to run out today." |
+- cat name
+- treatment start date display
+- morning/evening times
+- default dosage
+- due window
+- notification preferences
 
-Duplicate notifications for the same threshold and same supply item are suppressed. If the projection changes, the notification schedule is recalculated and previously-sent warnings may be re-triggered if the new projection crosses a threshold that was not previously reached.
+Changing schedule settings should update future behavior without corrupting past logged history.
 
-### 7. Dashboard
+## Data Model Direction
 
-The dashboard is the primary screen. It shows:
+- **User**: account identity, timezone, notification preferences
+- **Cat**: belongs to one user; stores name and treatment start date
+- **InjectionSchedule**: belongs to cat; stores morning/evening schedule defaults and due window settings
+- **InjectionEvent**: one scheduled occurrence; persists schedule linkage and `scheduledAt`
+- **InjectionLog**: one submitted log linked to an event; stores actual dose details
+- **SupplyRecord**: generic supply entity with `type` (`insulin` or `needles`), starting amount, remaining amount, active flag, and projection data
 
-- Next scheduled injection (time and status)
-- **Track** button if an injection is currently due
-- Last completed injection summary
-- Active needle pack: remaining count + estimated run-out date
-- Active insulin bottle: remaining amount + estimated run-out date
-- Active low-supply alerts
-- Quick actions: Track injection · Start new needle pack · Start new insulin bottle · View history
+## Scheduling and Time Rules
 
-### 8. Injection History
+- Store timestamps in UTC
+- Display in the user's configured timezone
+- Persist future scheduled events
+- Recompute only future unlogged events when schedule settings change
+- Support DST safely when generating future scheduled events
 
-Chronological list of all injection logs (reverse chronological order). Each entry shows: scheduled time · actual time · dosage · needles used · injection site · status · notes · logged by.
+## Validation Rules
 
-Filtering by date range, status, and injection site. Editing a past log recalculates supply usage. Deleting a log (with confirmation) also recalculates. CSV export is a stretch goal for v1.
+- Cat name required
+- Morning and evening times required
+- Default dosage must be non-negative
+- Due window must be non-negative
+- Treatment start date must be a real date and not more than one year in the past
+- Validation errors must be visible inline and accessible
 
-### 9. Settings
+## Phase Plan
 
-| Setting | Description |
-|---------|-------------|
-| Cat name | Display name |
-| Injection times | One or more times of day (e.g. 08:00, 20:00) |
-| Time zone | Used for scheduling and display |
-| Schedule start date | First event date |
-| Default dosage | Pre-filled in the logging form |
-| Default needles per injection | Pre-filled in the logging form |
-| Tracking window | Minutes before scheduled time the Track button activates |
-| Missed threshold | Hours after scheduled time before event is marked missed |
-| Injection site list | Configurable list + custom entry |
-| Supply defaults | Default pack size / bottle size |
+1. Foundation + sign-in/setup parity
+2. Dashboard + event status layer
+3. Injection logging
+4. Supply tracking
+5. Calendar
+6. Settings + schedule editing
 
----
-
-## Key User Flows
-
-### First-Time Setup
-
-1. User opens app and signs in
-2. Enter cat name
-3. Configure injection schedule (times, default dosage, default needles)
-4. Enter current needle pack details
-5. Enter current insulin bottle details
-6. App generates upcoming calendar events
-7. User lands on dashboard
-
-### Track a Due Injection
-
-1. User opens dashboard or receives in-app notification
-2. Sees due injection event
-3. Clicks Track
-4. Form opens pre-filled with scheduled time, current time, default dosage, default needles
-5. User confirms or edits fields
-6. User submits
-7. App marks event completed, updates supply inventory, recalculates run-out dates, shows confirmation
-
-### Start a New Supply
-
-1. User clicks Start New Needle Pack / Start New Insulin Bottle
-2. Enters start date and initial quantity
-3. Saves → app activates new supply, deactivates previous, recalculates forecasts
-
----
-
-## Data Model
-
-A **User** has an email address, display name, and a configured time zone. A **Cat** belongs to one User and has a name. An **InjectionSchedule** belongs to a Cat and records the configured injection times, default dosage, default needles per injection, and whether it is currently active. An **InjectionEvent** belongs to a Cat and a Schedule; it represents one scheduled injection occurrence and carries a status (Upcoming, Due, Completed, Late, Missed, Skipped, or Partial). An **InjectionLog** belongs to a Cat and an Event and records the actual time, dosage given, needles used, injection site, outcome, notes, and which caregiver submitted it. A **NeedlePack** belongs to a Cat and tracks label, start date, starting quantity, current remaining quantity, active flag, and estimated run-out date; only one pack is active at a time. An **InsulinBottle** belongs to a Cat and tracks the same fields plus insulin name and unit; only one bottle is active at a time. A **NotificationRecord** belongs to a Cat and records a scheduled in-app alert (types: injection due, injection missed, needles/insulin at 5-day, 1-day, and final-day thresholds) along with its scheduled time, sent time, and status.
-
----
-
-## API Surface
-
-- `GET /calendar?from=&to=` — all events in range with status and log summary
-- `POST /logs` — submit injection log; marks event, decrements supply, recalculates forecasts
-- `POST /supplies/needles` / `POST /supplies/insulin` — open new supply record
-- `GET /dashboard` — today's events + supply levels + notification flags
-- `PUT /settings` — persist new schedule config, regenerate future events
-
----
-
-## Edge Cases & Error Handling
-
-- Log outside active window → accepted, flagged as late
-- No logs yet → supply depletion falls back to schedule × default quantity
-- Concurrent log submission → second is rejected with "already logged" message
-- Settings change injection times → only future unlogged events updated
-- Empty calendar/dashboard → prompt to configure injection times
-- Estimated daily usage = 0 → show "insufficient usage data" instead of a date
-- Remaining supply ≤ 0 → show "depleted"
-- New supply opened with past start date → prompt whether to apply historical logs
-
----
+The PRD and `docs/PROTOTYPE_SPEC.md` are the product source of truth for implementation.
 
 ## Non-Functional Requirements
 
-- **Mobile-first.** Primary use case is a caregiver standing next to the cat. Large buttons, minimal taps for key actions.
-- **Performance.** Dashboard and calendar load under 2 seconds on a standard mobile connection. Calendar supports 12+ months of generated events without lag.
-- **Reliability.** Injection and supply logs must not be lost. Form submissions are idempotent to prevent duplicate logs.
-- **Security.** Auth required; sessions persist across browser closes. All inputs validated client- and server-side. No medical data exposed publicly. Support account deletion.
-- **Time zones.** Store all timestamps in UTC. Display in user's configured time zone. Handle daylight saving correctly.
-- **Accessibility.** High-contrast status labels, large tap targets, keyboard-accessible forms, screen-reader-friendly labels, clear error messages.
+- Mobile-first UX
+- Fast route loads and low-friction logging
+- Idempotent logging submissions
+- Server- and client-side validation
+- Accessible forms, labels, and focus states
+- Reliable persisted data for logs and supplies
 
----
+## Risks
 
-## Risks & Considerations
+- Duplicate caregiver actions -> mitigate with visible status and idempotent log creation
+- Timezone/DST mistakes -> centralize schedule generation and read logic
+- Supply forecast inaccuracy -> label projections clearly as estimates
 
-| Risk | Mitigation |
-|------|-----------|
-| Duplicate dosing by two caregivers | Completed events are highly visible; concurrent submission is rejected |
-| Notification reliability (in-app only) | Dashboard always shows next injection and supply alerts |
-| Supply forecast inaccuracy | Label projected run-out dates clearly as estimates |
-| Medical safety | App must not recommend dosage. Include disclaimer: tracking and reminder tool only, not a substitute for veterinary advice |
+## Success Criteria
 
----
-
-## Future Enhancements (Post-v1)
-
-- Push notifications (browser), email, SMS
-- Multi-pet support
-- Multi-household / role-based access (Owner · Caregiver · Viewer)
-- Blood glucose and weight tracking
-- Injection site rotation recommendations
-- Vet report / PDF export
-- CSV import/export
-- Photo attachments on notes
-- Native mobile app
-- Calendar integration (Google, Apple, Outlook)
-
----
-
-## MVP Acceptance Criteria
-
-**Calendar**
-- Given a configured schedule, upcoming injection events appear at the correct times
-- Given an event is due, a Track button is available
-- Given an event is logged, it appears as completed on the calendar
-
-**Tracking form**
-- Form opens pre-filled with scheduled time, default dosage, default needles
-- Valid submission creates a log and marks the event completed
-- Invalid input shows a validation error
-
-**Supplies**
-- Logging an injection decrements the active needle pack and insulin bottle
-- Editing or deleting a log recalculates remaining supply and run-out dates
-
-**Notifications**
-- 5-day warning fires when projection reaches 5 days
-- Final-day warning fires on projected run-out date
-- Same threshold does not fire twice for the same supply item
-
-**History**
-- Past logs shown in reverse chronological order
-- Editing a past log updates supply calculations
+- A first-time user can sign in, complete setup, and reach a useful dashboard
+- A caregiver can identify the next injection and log it quickly
+- The app shows enough supply state to prevent surprise depletion
+- Schedule changes affect future behavior without damaging history
