@@ -8,6 +8,7 @@ export const prisma = new PrismaClient({
 });
 
 export async function resetDatabase() {
+  await prisma.supplyRecord.deleteMany();
   await prisma.injectionEvent.deleteMany();
   await prisma.injectionScheduleTime.deleteMany();
   await prisma.injectionSchedule.deleteMany();

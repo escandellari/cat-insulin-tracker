@@ -16,6 +16,9 @@ vi.mock("@/lib/db", () => ({
     injectionEvent: {
       findMany: vi.fn(),
     },
+    supplyRecord: {
+      findMany: vi.fn(),
+    },
   },
 }));
 
@@ -221,6 +224,60 @@ describe("Dashboard page", () => {
     expect(html).toContain("Jan 11, 2026, 8:00 AM");
     expect(html).toContain("Home");
     expect(html).toContain('aria-current="page"');
+  });
+
+  it("renders supply summary cards and low warning state", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-10T13:10:00.000Z"));
+
+    vi.mocked(auth).mockResolvedValue(AUTHED_SESSION as any);
+    vi.mocked(prisma.cat.findFirst).mockResolvedValue({
+      id: "cat-1",
+      name: "Milo",
+      userId: AUTHED_SESSION.user.id,
+      user: {
+        timezone: "America/New_York",
+      },
+      injectionSchedules: [
+        {
+          id: "schedule-1",
+          trackingWindowMinutes: 45,
+          defaultDosage: { toString: () => "1.5" },
+        },
+      ],
+      createdAt: new Date(),
+    } as any);
+    vi.mocked(prisma.injectionEvent.findMany).mockResolvedValue([] as any);
+    vi.mocked((prisma as any).supplyRecord.findMany).mockResolvedValue([
+      {
+        id: "supply-insulin-active",
+        type: "insulin",
+        startedAt: new Date("2026-01-12T00:00:00.000Z"),
+        startingAmount: { toString: () => "12" },
+        remainingAmount: { toString: () => "12" },
+        unit: "units",
+        isActive: true,
+        createdAt: new Date("2026-01-12T00:00:00.000Z"),
+      },
+      {
+        id: "supply-needles-active",
+        type: "needles",
+        startedAt: new Date("2026-01-10T00:00:00.000Z"),
+        startingAmount: { toString: () => "10" },
+        remainingAmount: { toString: () => "10" },
+        unit: "needles",
+        isActive: true,
+        createdAt: new Date("2026-01-10T00:00:00.000Z"),
+      },
+    ] as any);
+
+    const DashboardPage = await getDashboardPage();
+    const html = toHtml((await DashboardPage()) as React.ReactElement);
+
+    expect(html).toContain("Insulin running low — Consider ordering...");
+    expect(html).toContain("12 units");
+    expect(html).toContain("10 needles");
+    expect(html).toContain("days remaining");
   });
 
   it("keeps missed early-today events in today's section while leaving tomorrow in upcoming", async () => {

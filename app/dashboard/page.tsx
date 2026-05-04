@@ -1,4 +1,6 @@
 import { auth, signOut } from "@/auth";
+import { LogInjectionWrapper } from "@/features/injections";
+import { buildSuppliesReadModel } from "@/features/supplies";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { buildDashboardReadModel, getLocalDayStartUtc } from "@/features/scheduling";
@@ -7,7 +9,6 @@ import {
   mobilePrimaryButtonClassName,
   mobileSecondaryButtonClassName,
 } from "@/features/setup";
-import { LogInjectionWrapper } from "@/features/injections";
 
 const statusBadgeClassNames = {
   upcoming: "bg-[#FFF8E1] text-[#8B6914]",
@@ -120,6 +121,16 @@ export default async function DashboardPage() {
     events,
   });
 
+  const supplies = (await prisma.supplyRecord.findMany({
+    where: { catId: cat.id },
+    orderBy: { createdAt: "desc" },
+  })) ?? [];
+
+  const supplyView = buildSuppliesReadModel({
+    supplies: supplies as never[],
+    defaultDosage: Number(cat.injectionSchedules?.[0]?.defaultDosage?.toString() ?? 0),
+  });
+
   return (
     <MobileShell>
       <div className="space-y-6 pb-24">
@@ -173,6 +184,24 @@ export default async function DashboardPage() {
             )}
           </section>
         ) : null}
+
+        {supplyView.warningText ? (
+          <div className="rounded-xl border border-[#F5E6B3] bg-[#FFF8E1] px-4 py-3 text-sm font-medium text-[#8B6914]">
+            {supplyView.warningText}
+          </div>
+        ) : null}
+
+        <section className="grid grid-cols-2 gap-3">
+          {[supplyView.insulinCard, supplyView.needlesCard].map((card) =>
+            card ? (
+              <div key={card.id} className="rounded-2xl border border-sage-200 bg-white p-4 shadow-sm">
+                <p className="text-xs font-medium uppercase tracking-[0.2em] text-sage-600">{card.title}</p>
+                <p className="mt-2 text-2xl font-medium text-sage-950">{card.remainingAmountLabel}</p>
+                <p className="text-sm text-sage-600">{card.estimateLabel}</p>
+              </div>
+            ) : null,
+          )}
+        </section>
 
         <section className="space-y-3">
           <h2 className="text-sm font-medium text-sage-950">Today&apos;s injections</h2>

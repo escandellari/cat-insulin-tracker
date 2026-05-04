@@ -64,6 +64,7 @@ model Cat {
   user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   injectionSchedules InjectionSchedule[]
   injectionEvents    InjectionEvent[]
+  supplyRecords      SupplyRecord[]
 }
 
 model InjectionSchedule {
@@ -116,4 +117,19 @@ model InjectionLog {
   event         InjectionEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId])
+}
+
+model SupplyRecord {
+  id             String   @id @default(cuid())
+  catId          String
+  type           String
+  startedAt      DateTime
+  startingAmount Float
+  remainingAmount Float
+  unit           String
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  cat            Cat      @relation(fields: [catId], references: [id], onDelete: Cascade)
+
+  @@index([catId, type, isActive])
 }
